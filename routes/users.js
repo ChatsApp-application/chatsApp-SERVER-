@@ -5,6 +5,9 @@ const isAuth = require('../middlewares/isAuth');
 const checkValidation = require('../middlewares/checkValidation');
 const router = express.Router();
 
+// GET @ /users/userAfterLogin
+router.get('/userAFterLogin', isAuth, usersControllers.getUserAfterLogin);
+
 // PATCH @ /users/editUserProfile
 router.patch(
 	'/editUserProfile',
@@ -42,9 +45,15 @@ router.patch('/sendFriendRequest/:userToAddId', isAuth, usersControllers.patchSe
 router.get('/friendRequests', isAuth, usersControllers.getUserFriendRequests);
 
 // DELETE @/users/rejectfriendRequest
-router.delete('/rejectfriendRequest', isAuth, usersControllers.deleteRejectNotification);
+router.delete('/rejectfriendRequest', isAuth, usersControllers.deleteRejectFriendRequest);
 
 // GET @ /users/userNotifications
 router.get('/userNotifications', isAuth, usersControllers.getUserNotifications);
+
+// PATCH @ /users/acceptFriendRequest
+router.patch('/acceptFriendRequest', isAuth, usersControllers.patchAcceptFriendRequest);
+
+//  DELETE @ /users/removeNotification/:notificationId
+router.delete('/removeNotification/:notificationId', isAuth, usersControllers.deleteRemoveNotification);
 
 module.exports = router;

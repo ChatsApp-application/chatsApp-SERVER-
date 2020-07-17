@@ -44,9 +44,11 @@ initDb((error, client) => {
 		console.log('Connected...');
 		let httpServer;
 		if (process.env.PORT) {
+			console.log('Production');
 			httpServer = app.listen(process.env.PORT);
 		} else {
-			httpServer = app.listen(2000);
+			console.log('Development');
+			httpServer = app.listen(1000);
 		}
 		const io = initIo(httpServer);
 		// listening to our only namespace => '/'

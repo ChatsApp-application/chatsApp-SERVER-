@@ -1,11 +1,13 @@
 const User = require('../models/user');
 const FriendRequest = require('../models/friendRequest');
+const Notification = require('../models/notifications');
+const chatRoom = require('../models/chatRoom');
 const mongodb = require('mongodb');
 const ObjectId = mongodb.ObjectId;
 const sendError = require('../helpers/sendError');
 const { updateUserWithCondition } = require('../models/user');
 const { getIo } = require('../helpers/socket');
-const Notification = require('../models/notifications');
+const ChatRoom = require('../models/chatRoom');
 const findMutualFriends = require('../helpers/functions').findMutualFriends;
 
 exports.patchEditUserProfile = async (req, res, next) => {
@@ -19,6 +21,33 @@ exports.patchEditUserProfile = async (req, res, next) => {
 
 	res.status(200).json({ message: 'user updated his profile successfully', userId: userId.toString() });
 	try {
+	} catch (error) {
+		if (!error.statusCode) error.statusCode = 500;
+		next(error);
+	}
+};
+
+exports.getUserAfterLogin = async (req, res, next) => {
+	const userId = req.userId;
+
+	try {
+		const user = await User.getUserAggregated([
+			{ $match: { _id: new ObjectId(userId) } },
+			{
+				$project: {
+					firstName: 1,
+					lastName: 1,
+					age: 1,
+					notifications: 1,
+					friendRequests: 1,
+					gender: 1,
+					online: 1,
+					bio: 1
+				}
+			}
+		]);
+
+		res.status(200).json({ message: 'User fetched successfully', user: user });
 	} catch (error) {
 		if (!error.statusCode) error.statusCode = 500;
 		next(error);
@@ -99,7 +128,9 @@ exports.findPeople = async (req, res, next) => {
 	}
 };
 
+// we need a socket here
 exports.visitProfile = async (req, res, next) => {
+	const whoWatchedId = req.userId;
 	const { userId } = req.params;
 
 	try {
@@ -131,6 +162,16 @@ exports.visitProfile = async (req, res, next) => {
 			}
 		]);
 
+		const notification = new Notification(whoWatchedId, userId, 'Viewed your profile.');
+		const addedNotification = await notification.addNotification();
+		const insertedNotificationId = addedNotification.insertedId;
+
+		await User.updateUserWithCondition(
+			{ _id: new ObjectId(userId) },
+			{ $addToSet: { notifications: new ObjectId(insertedNotificationId) } }
+		);
+
+		getIo().emit('informingNotification', { from: whoWatchedId, to: userId });
 		res.status(200).json({ user: user });
 	} catch (error) {
 		if (!error.statusCode) error.statusCode = 500;
@@ -237,8 +278,7 @@ exports.patchSendFriendRequest = async (req, res, next) => {
 		res.status(200).json({
 			message: 'Friend request sent successfully',
 			from: userId,
-			to: userToAddId,
-			addingResult: addingResult
+			to: userToAddId
 		});
 	} catch (error) {
 		if (!error.statusCode) error.statusCode = 500;
@@ -278,7 +318,7 @@ exports.getUserFriendRequests = async (req, res, next) => {
 	}
 };
 
-exports.deleteRejectNotification = async (req, res, next) => {
+exports.deleteRejectFriendRequest = async (req, res, next) => {
 	const userId = req.userId;
 	const { friendRequestId, fromId } = req.body;
 	try {
@@ -290,7 +330,11 @@ exports.deleteRejectNotification = async (req, res, next) => {
 
 		// create a notifictaion object, add it to the notifications collection
 
-		const notification = new Notification(new ObjectId(userId), new ObjectId(fromId)); // from is the user who rejected, to is the user who sent the notification(we want to notify him)
+		const notification = new Notification(
+			new ObjectId(userId),
+			new ObjectId(fromId),
+			'has rejected your friend request'
+		); // from is the user who rejected, to is the user who sent the notification(we want to notify him)
 
 		const addingNotificationResult = await notification.addNotification();
 		const insertedNotificationId = addingNotificationResult.insertedId;
@@ -306,7 +350,7 @@ exports.deleteRejectNotification = async (req, res, next) => {
 		);
 
 		// emit a socket event with the notification id, fromId, toId
-		getIo().emit('informingNotification', { from: userId, to: fromId });
+		getIo().emit('informingNotification', { from: userId, to: fromId, content: 'friendRequest rejection' });
 
 		res.status(200).json({
 			message: 'Friend request rejected successfully',
@@ -352,6 +396,87 @@ exports.getUserNotifications = async (req, res, next) => {
 		}
 
 		res.status(200).json({ userId: userId, notifications: notifications });
+	} catch (error) {
+		if (!error.statusCode) error.statusCode = 500;
+		next(error);
+	}
+};
+
+exports.patchAcceptFriendRequest = async (req, res, next) => {
+	const userId = req.userId;
+	const { friendRequestId, fromId } = req.body;
+
+	try {
+		// delete the friendRequest
+		await FriendRequest.removeFriendRequest(friendRequestId);
+
+		// create a chatRoom between these two users
+		// add the chatRoomId to both userId and fromId
+		const chatRoom = new ChatRoom(fromId, userId);
+		const addedRoom = await chatRoom.addChatRoom();
+		const insertedRoomId = addedRoom.insertedId;
+		// remove the friendRequest from the user.friendRequests array
+		// add the fromId to the user.friends array
+		await User.updateUserWithCondition(
+			{ _id: new ObjectId(userId) },
+			{
+				$pull: { friendRequests: new ObjectId(friendRequestId) },
+				$addToSet: { friends: new ObjectId(fromId) },
+				$addToSet: { chats: new ObjectId(insertedRoomId) }
+			}
+		);
+
+		// add the userId to the fromId.friends array
+		// add the notification to the user whose id is fromId
+		// create a notification
+		// remove the userId from the user whose id is fromId .friendRequestsUsers
+		const notification = new Notification(userId, fromId, 'has accepted your friend request.');
+
+		const insertedNotification = await notification.addNotification();
+
+		const notificationId = insertedNotification.insertedId;
+
+		await User.updateUserWithCondition(
+			{ _id: new ObjectId(fromId) },
+			{
+				$addToSet: { friends: new ObjectId(userId) },
+				$addToSet: { notifications: new ObjectId(notificationId) },
+				$pull: { friendRequestsUsers: new ObjectId(userId) },
+				$addToSet: { chats: new ObjectId(insertedRoomId) }
+			}
+		);
+
+		// emit a socket event ('informingNotification')
+		getIo().emit('informingNotification', { from: userId, to: fromId, content: 'friendRequest approval' });
+
+		res
+			.status(200)
+			.json({ message: 'Friend Request accepted successfully', friendRequestId: friendRequestId, from: fromId });
+	} catch (error) {
+		if (!error.statusCode) error.statusCode = 500;
+		next(error);
+	}
+};
+
+exports.deleteRemoveNotification = async (req, res, next) => {
+	const userId = req.userId;
+	const { notificationId } = req.params;
+
+	try {
+		// check if this notification related to the user who wants to delete(this won`t happen with 99% percent but just for more insurance while developing)
+
+		const notification = await Notification.getNotificationsAggregated({
+			$match: { _id: new ObjectId(notificationId) }
+		});
+
+		if (notification.to.toString() !== userId.toString())
+			sendError('This user does not own this notification', 403);
+
+		await Notification.removeNotification(notificationId);
+		await User.updateUserWithCondition(
+			{ _id: new Object(userId) },
+			{ $pull: { notifications: new ObjectId(notificationId) } }
+		);
 	} catch (error) {
 		if (!error.statusCode) error.statusCode = 500;
 		next(error);

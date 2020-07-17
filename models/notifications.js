@@ -3,10 +3,11 @@ const mongodb = require('mongodb');
 const ObjectId = mongodb.ObjectId;
 const db = require('../helpers/db').getDb;
 class Notification {
-	constructor(from, to, date = new Date(), type = 'informingNotification') {
+	constructor(from, to, message, date = new Date(), type = 'informingNotification') {
 		this.type = type;
 		this.from = from;
 		this.to = to;
+		this.message = message;
 		this.data = date;
 	}
 
