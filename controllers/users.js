@@ -50,6 +50,7 @@ exports.getUserAfterLogin = async (req, res, next) => {
 				}
 			}
 		]);
+		console.log('exports.getUserAfterLogin -> foundUser', foundUser);
 
 		if (foundUser.notifications.length > 0 && foundUser.friendRequests.length > 0) {
 			user = await User.getUserAggregated([
