@@ -52,6 +52,7 @@ exports.getUserAfterLogin = async (req, res, next) => {
 		]);
 		console.log('exports.getUserAfterLogin -> foundUser', foundUser);
 
+		if (!foundUser) sendError('User with given id does not found', 403);
 		if (foundUser.notifications.length > 0 && foundUser.friendRequests.length > 0) {
 			user = await User.getUserAggregated([
 				{ $match: { _id: new ObjectId(userId) } },
