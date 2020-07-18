@@ -1,13 +1,12 @@
 const User = require('../models/user');
 const FriendRequest = require('../models/friendRequest');
 const Notification = require('../models/notifications');
-const chatRoom = require('../models/chatRoom');
 const mongodb = require('mongodb');
 const ObjectId = mongodb.ObjectId;
 const sendError = require('../helpers/sendError');
-const { updateUserWithCondition } = require('../models/user');
 const { getIo } = require('../helpers/socket');
 const ChatRoom = require('../models/chatRoom');
+const checkRelation = require('../helpers/functions').checkRelation;
 const findMutualFriends = require('../helpers/functions').findMutualFriends;
 
 exports.patchEditUserProfile = async (req, res, next) => {
@@ -29,23 +28,254 @@ exports.patchEditUserProfile = async (req, res, next) => {
 
 exports.getUserAfterLogin = async (req, res, next) => {
 	const userId = req.userId;
+	console.log('exports.getUserAfterLogin -> userId', userId);
+	console.log('working');
 
 	try {
-		const user = await User.getUserAggregated([
+		let user;
+		const foundUser = await User.getUserAggregated([
 			{ $match: { _id: new ObjectId(userId) } },
+
 			{
 				$project: {
 					firstName: 1,
 					lastName: 1,
 					age: 1,
-					notifications: 1,
 					friendRequests: 1,
+					notifications: 1,
 					gender: 1,
 					online: 1,
-					bio: 1
+					bio: 1,
+					country: 1
 				}
 			}
 		]);
+
+		if (foundUser.notifications.length > 0 && foundUser.friendRequests.length > 0) {
+			user = await User.getUserAggregated([
+				{ $match: { _id: new ObjectId(userId) } },
+
+				{
+					$project: {
+						firstName: 1,
+						lastName: 1,
+						age: 1,
+						friendRequests: 1,
+						notifications: 1,
+						gender: 1,
+						online: 1,
+						bio: 1,
+						country: 1
+					}
+				},
+
+				{ $unwind: '$notifications' },
+				{
+					$lookup: {
+						from: 'users',
+						foreignField: '_id',
+						localField: 'notifications.from',
+						as: 'notifications.fromUser'
+					}
+				},
+				{ $unwind: '$notifications.fromUser' },
+				// project
+				{
+					$project: {
+						'notifications.fromUser.password': 0,
+						'notifications.fromUser.friendRequestsUsers': 0,
+						'notifications.fromUser.friendRequests': 0,
+						'notifications.fromUser.notifications': 0,
+						'notifications.fromUser.friends': 0,
+						'notifications.fromUser.chats': 0,
+						'notifications.fromUser.groups': 0
+					}
+				},
+				{
+					$group: {
+						_id: '$_id',
+						root: { $mergeObjects: '$$ROOT' },
+						notifications: { $push: '$notifications' }
+					}
+				},
+				{
+					$replaceRoot: {
+						newRoot: {
+							$mergeObjects: [ '$root', '$$ROOT' ]
+						}
+					}
+				},
+				{
+					$project: {
+						root: 0
+					}
+				},
+				// friendRequests
+
+				{ $unwind: '$friendRequests' },
+				{
+					$lookup: {
+						from: 'users',
+						foreignField: '_id',
+						localField: 'friendRequests.from',
+						as: 'friendRequests.fromUser'
+					}
+				},
+				{ $unwind: '$friendRequests.fromUser' },
+				// project
+				{
+					$project: {
+						'friendRequests.fromUser.password': 0,
+						'friendRequests.fromUser.friendRequestsUsers': 0,
+						'friendRequests.fromUser.friendRequests': 0,
+						'friendRequests.fromUser.notifications': 0,
+						'friendRequests.fromUser.friends': 0,
+						'friendRequests.fromUser.chats': 0,
+						'friendRequests.fromUser.groups': 0
+					}
+				},
+				{
+					$group: {
+						_id: '$_id',
+						root: { $mergeObjects: '$$ROOT' },
+						friendRequests: { $push: '$friendRequests' }
+					}
+				},
+				{
+					$replaceRoot: {
+						newRoot: {
+							$mergeObjects: [ '$root', '$$ROOT' ]
+						}
+					}
+				},
+				{
+					$project: {
+						root: 0
+					}
+				}
+			]);
+		} else if (foundUser.notifications.length > 0) {
+			user = await User.getUserAggregated([
+				{ $match: { _id: new ObjectId(userId) } },
+
+				{
+					$project: {
+						firstName: 1,
+						lastName: 1,
+						age: 1,
+						friendRequests: 1,
+						notifications: 1,
+						gender: 1,
+						online: 1,
+						bio: 1,
+						country: 1
+					}
+				},
+
+				{ $unwind: '$notifications' },
+				{
+					$lookup: {
+						from: 'users',
+						foreignField: '_id',
+						localField: 'notifications.from',
+						as: 'notifications.fromUser'
+					}
+				},
+				{ $unwind: '$notifications.fromUser' },
+				// project
+				{
+					$project: {
+						'notifications.fromUser.password': 0,
+						'notifications.fromUser.friendRequestsUsers': 0,
+						'notifications.fromUser.friendRequests': 0,
+						'notifications.fromUser.notifications': 0,
+						'notifications.fromUser.friends': 0,
+						'notifications.fromUser.chats': 0,
+						'notifications.fromUser.groups': 0
+					}
+				},
+				{
+					$group: {
+						_id: '$_id',
+						root: { $mergeObjects: '$$ROOT' },
+						notifications: { $push: '$notifications' }
+					}
+				},
+				{
+					$replaceRoot: {
+						newRoot: {
+							$mergeObjects: [ '$root', '$$ROOT' ]
+						}
+					}
+				},
+				{
+					$project: {
+						root: 0
+					}
+				}
+			]);
+		} else if (foundUser.friendRequests.length > 0) {
+			user = await User.getUserAggregated([
+				{ $match: { _id: new ObjectId(userId) } },
+
+				{
+					$project: {
+						firstName: 1,
+						lastName: 1,
+						age: 1,
+						friendRequests: 1,
+						notifications: 1,
+						gender: 1,
+						online: 1,
+						bio: 1,
+						country: 1
+					}
+				},
+				{ $unwind: '$friendRequests' },
+				{
+					$lookup: {
+						from: 'users',
+						foreignField: '_id',
+						localField: 'friendRequests.from',
+						as: 'friendRequests.fromUser'
+					}
+				},
+				{ $unwind: '$friendRequests.fromUser' },
+				// project
+				{
+					$project: {
+						'friendRequests.fromUser.password': 0,
+						'friendRequests.fromUser.friendRequestsUsers': 0,
+						'friendRequests.fromUser.friendRequests': 0,
+						'friendRequests.fromUser.notifications': 0,
+						'friendRequests.fromUser.friends': 0,
+						'friendRequests.fromUser.chats': 0,
+						'friendRequests.fromUser.groups': 0
+					}
+				},
+				{
+					$group: {
+						_id: '$_id',
+						root: { $mergeObjects: '$$ROOT' },
+						friendRequests: { $push: '$friendRequests' }
+					}
+				},
+				{
+					$replaceRoot: {
+						newRoot: {
+							$mergeObjects: [ '$root', '$$ROOT' ]
+						}
+					}
+				},
+				{
+					$project: {
+						root: 0
+					}
+				}
+			]);
+		} else {
+			user = foundUser;
+		}
 
 		res.status(200).json({ message: 'User fetched successfully', user: user });
 	} catch (error) {
@@ -134,6 +364,7 @@ exports.visitProfile = async (req, res, next) => {
 	const { userId } = req.params;
 
 	try {
+		// the user who we are on his profile
 		const user = await User.getUserAggregated([
 			{ $match: { _id: new ObjectId(userId) } },
 			{
@@ -157,21 +388,34 @@ exports.visitProfile = async (req, res, next) => {
 					'userFriends.notifications': 0,
 					'userFriends.friends': 0,
 					'userFriends.chats': 0,
-					'userFriends.groups': 0
+					'userFriends.groups': 0,
+					'userFriends.friendRequests': 0
 				}
 			}
 		]);
 
-		const notification = new Notification(whoWatchedId, userId, 'Viewed your profile.');
-		const addedNotification = await notification.addNotification();
-		const insertedNotificationId = addedNotification.insertedId;
+		const userWhoWatched = await User.getUser(whoWatchedId);
 
-		await User.updateUserWithCondition(
-			{ _id: new ObjectId(userId) },
-			{ $addToSet: { notifications: new ObjectId(insertedNotificationId) } }
-		);
+		const relation = checkRelation(userWhoWatched, user);
+		user.relation = relation;
+		console.log('exports.visitProfile -> relation', relation);
 
-		getIo().emit('informingNotification', { from: whoWatchedId, to: userId });
+		// make a notification and send it to user (the user we are watching him) to inform him that somebody saw his profile but make sure to prevent this if the relation === isOwner
+
+		if (relation !== 'isOwner') {
+			const notification = new Notification(
+				new ObjectId(whoWatchedId),
+				new ObjectId(userId),
+				'Viewed your profile.'
+			);
+
+			await User.updateUserWithCondition(
+				{ _id: new ObjectId(userId) },
+				{ $addToSet: { notifications: notification } }
+			);
+
+			getIo().emit('informingNotification', { from: whoWatchedId, to: userId });
+		}
 		res.status(200).json({ user: user });
 	} catch (error) {
 		if (!error.statusCode) error.statusCode = 500;
@@ -195,12 +439,14 @@ exports.getFriends = async (req, res, next) => {
 					'userFriends.password': 0,
 					'userFriends.email': 0,
 					'userFriends.notifications': 0,
+					'userFriends.friendRequests': 0,
 					'userFriends.friendRequestsUsers': 0,
 					'userFriends.chats': 0,
 					'userFriends.groups': 0
 				}
 			}
 		]);
+		console.log('exports.getFriends -> user', user);
 
 		let userFriends = user.userFriends; // [{}, {}]
 
@@ -227,10 +473,16 @@ exports.patchUnfriend = async (req, res, next) => {
 
 	try {
 		// remove the friendID from the user`s friends arr
-		await updateUserWithCondition({ _id: new ObjectId(userId) }, { $pull: { friends: new ObjectId(friendId) } });
+		await User.updateUserWithCondition(
+			{ _id: new ObjectId(userId) },
+			{ $pull: { friends: new ObjectId(friendId) } }
+		);
 
 		// remove the userId from the friends` friends Arr
-		await updateUserWithCondition({ _id: new ObjectId(friendId) }, { $pull: { friends: new ObjectId(userId) } });
+		await User.updateUserWithCondition(
+			{ _id: new ObjectId(friendId) },
+			{ $pull: { friends: new ObjectId(userId) } }
+		);
 
 		// emit this to all his friends so we can remove him from all his friends clients
 		getIo().emit('unFriend', { userId: userId, friendId: friendId });
@@ -242,7 +494,7 @@ exports.patchUnfriend = async (req, res, next) => {
 	}
 };
 
-// we need a socket here
+// we need a socket here //edited
 exports.patchSendFriendRequest = async (req, res, next) => {
 	const userId = req.userId;
 	const { userToAddId } = req.params;
@@ -250,68 +502,107 @@ exports.patchSendFriendRequest = async (req, res, next) => {
 	console.log('exports.patchSendFriendRequest -> userId', typeof userId);
 
 	try {
-		const friendRequest = new FriendRequest(new ObjectId(userId), new ObjectId(userToAddId));
+		// check if userId is included in userToAddId.friendRequestsUsers
+		// if true, then this friend you are trying to send him a friend has already sent u one
+		// make him a frien and emit a socket event
 
-		// add the notification in the notifications collection
-		const addingResult = await friendRequest.addFriendRequest();
+		const userToAdd = await User.getUser(userToAddId);
 
-		// get the notificationId
-		const friendRequestId = addingResult.ops[0]._id;
+		const friendRequestsUsers = userToAdd.friendRequestsUsers;
 
-		// add this friendRequest to the userToAdd friendRequests array
-		await User.updateUserWithCondition(
-			{ _id: new ObjectId(userToAddId) },
-			{
-				$addToSet: { friendRequests: new ObjectId(friendRequestId) }
+		if (friendRequestsUsers.length > 0) {
+			let foundUser = friendRequestsUsers.find(id => id.toString() === userId.toString());
+
+			if (foundUser) {
+				// userToAdd sent him first, make them friends
+
+				const user = await User.getUser(userId);
+
+				const hisFriendRequest = user.friendRequests.find(
+					fReq => fReq.from.toString() === userToAddId.toString()
+				);
+				console.log('exports.patchSendFriendRequest -> hisFriendRequest', hisFriendRequest);
+
+				// create a chatRoom between these two users
+				// add the chatRoomId to both userId and fromId
+				const chatRoom = new ChatRoom(new ObjectId(userToAddId), new ObjectId(userId));
+				const addedRoom = await chatRoom.addChatRoom();
+				const insertedRoomId = addedRoom.insertedId;
+
+				const notificationForAddTo = new Notification(
+					new ObjectId(userId),
+					new ObjectId(userToAddId),
+					'and you are now friends.'
+				);
+
+				const notificationForUser = new Notification(
+					new ObjectId(userToAddId),
+					new ObjectId(userId),
+					'and you are now friends.'
+				);
+				// remove the friendRequest from the user.friendRequests array
+				// add the fromId to the user.friends array
+				const userFilter = { _id: new ObjectId(userId) };
+				const toAddFilter = { _id: new ObjectId(userToAddId) };
+
+				await Promise.all([
+					User.updateUserWithCondition(userFilter, { $addToSet: { chats: new ObjectId(insertedRoomId) } }),
+					User.updateUserWithCondition(userFilter, {
+						$pull: { friendRequests: { _id: { $eq: hisFriendRequest._id } } }
+					}),
+					User.updateUserWithCondition(userFilter, {
+						$addToSet: {
+							friends: new ObjectId(userToAddId)
+						}
+					}),
+					User.updateUserWithCondition(userFilter, { $addToSet: { notifications: notificationForUser } }),
+					User.updateUserWithCondition(toAddFilter, { $addToSet: { chats: new ObjectId(insertedRoomId) } }),
+					User.updateUserWithCondition(toAddFilter, { $addToSet: { friends: new ObjectId(userId) } }),
+					User.updateUserWithCondition(toAddFilter, { $addToSet: { notifications: notificationForAddTo } }),
+					User.updateUserWithCondition(toAddFilter, { $pull: { friendRequestsUsers: new ObjectId(userId) } })
+				]);
+
+				// emit a socket event ('informingNotificationForBoth')
+				getIo().emit('informingNotificationForBoth', {
+					from: userId,
+					to: userToAddId,
+					content: 'automaticFriending'
+				});
+
+				return res.status(200).json({
+					message: 'Friend request accepted successfully',
+					from: userId,
+					to: userToAddId
+				});
 			}
-		);
+		} else {
+			console.log('reached here');
+			const friendRequest = new FriendRequest(new ObjectId(userId), new ObjectId(userToAddId));
+			// get the notificationId
 
-		// add the userToAddId in the friendRequestsUser array to make him recogonized as (sent)
-		await User.updateUserWithCondition(
-			{ _id: new ObjectId(userId) },
-			{ $addToSet: { friendRequestsUsers: new ObjectId(userToAddId) } }
-		);
-
-		// emit an event with the new notification to userToAddId => the frontend will only increase the numbers of notifications by 1
-		getIo().emit('friendRequestNotification', { from: userId, to: userToAddId });
-
-		res.status(200).json({
-			message: 'Friend request sent successfully',
-			from: userId,
-			to: userToAddId
-		});
-	} catch (error) {
-		if (!error.statusCode) error.statusCode = 500;
-		next(error);
-	}
-};
-
-exports.getUserFriendRequests = async (req, res, next) => {
-	const userId = req.userId;
-
-	try {
-		const user = await User.getUser(userId);
-		const userFriendRequests = user.friendRequests;
-
-		let friendRequests = [];
-		if (userFriendRequests.length > 0) {
-			friendRequests = await FriendRequest.getFriendRequestsAggregated([
-				{ $match: { _id: { $in: userFriendRequests } } },
-				{ $lookup: { from: 'users', localField: 'from', foreignField: '_id', as: 'fromUser' } },
+			// add this friendRequest to the userToAdd friendRequests array
+			await User.updateUserWithCondition(
+				{ _id: new ObjectId(userToAddId) },
 				{
-					$project: {
-						from: 1,
-						to: 1,
-						date: 1,
-						'fromUser._id': 1,
-						'fromUser.firstName': 1,
-						'fromUser.lastName': 1,
-						'fromUser.country': 1
-					}
+					$addToSet: { friendRequests: friendRequest }
 				}
-			]);
+			);
+			console.log('and here');
+			// add the userToAddId in the friendRequestsUser array to make him recogonized as (sent)
+			await User.updateUserWithCondition(
+				{ _id: new ObjectId(userId) },
+				{ $addToSet: { friendRequestsUsers: new ObjectId(userToAddId) } }
+			);
+
+			// emit an event with the new notification to userToAddId => the frontend will only increase the numbers of notifications by 1
+			getIo().emit('friendRequestNotification', { from: userId, to: userToAddId });
+
+			res.status(200).json({
+				message: 'Friend request sent successfully',
+				from: userId,
+				to: userToAddId
+			});
 		}
-		res.status(200).json({ friendRequests: friendRequests });
 	} catch (error) {
 		if (!error.statusCode) error.statusCode = 500;
 		next(error);
@@ -322,9 +613,6 @@ exports.deleteRejectFriendRequest = async (req, res, next) => {
 	const userId = req.userId;
 	const { friendRequestId, fromId } = req.body;
 	try {
-		// remove the friendRequest from the friendRequest collection
-		await FriendRequest.removeFriendRequest(friendRequestId);
-
 		// remove this notification from the user.friendRequest array
 		await User.removeFriendRequest(userId, friendRequestId);
 
@@ -336,16 +624,13 @@ exports.deleteRejectFriendRequest = async (req, res, next) => {
 			'has rejected your friend request'
 		); // from is the user who rejected, to is the user who sent the notification(we want to notify him)
 
-		const addingNotificationResult = await notification.addNotification();
-		const insertedNotificationId = addingNotificationResult.insertedId;
-
 		// add the notificationId to the user.notifications array
 		// got to the fromId which is the user who sent this friend request, remove userId from his friendRequestsUsers array
 		await User.updateUserWithCondition(
 			{ _id: new ObjectId(fromId) },
 			{
 				$pull: { friendRequestsUsers: new ObjectId(userId) },
-				$addToSet: { notifications: new ObjectId(insertedNotificationId) }
+				$addToSet: { notifications: notification }
 			}
 		);
 
@@ -363,88 +648,43 @@ exports.deleteRejectFriendRequest = async (req, res, next) => {
 	}
 };
 
-exports.getUserNotifications = async (req, res, next) => {
-	const userId = req.userId;
-
-	try {
-		// get the user, get the user.notifications users ids array
-		// get all notifications whose ids are in the given id, if not found, return []
-
-		const user = await User.getUser(userId);
-		const userNotifications = user.notifications; // [id, id, ...]
-
-		let notifications = [];
-
-		// lookup in users to get the real data of the fromId
-		if (userNotifications.length > 0) {
-			notifications = await Notification.getNotificationsAggregated([
-				{ $match: { _id: { $in: userNotifications } } },
-				{ $lookup: { from: 'users', localField: 'from', foreignField: '_id', as: 'fromUser' } },
-				{
-					$project: {
-						from: 1,
-						to: 1,
-						date: 1,
-						'fromUser._id': 1,
-						'fromUser.firstName': 1,
-						'fromUser.lastName': 1,
-						'fromUser.country': 1
-					}
-				}
-			]);
-			console.log('exports.getUserNotifications -> notifications', notifications);
-		}
-
-		res.status(200).json({ userId: userId, notifications: notifications });
-	} catch (error) {
-		if (!error.statusCode) error.statusCode = 500;
-		next(error);
-	}
-};
-
 exports.patchAcceptFriendRequest = async (req, res, next) => {
 	const userId = req.userId;
+	console.log('exports.patchAcceptFriendRequest -> userId', userId);
 	const { friendRequestId, fromId } = req.body;
+	console.log('exports.patchAcceptFriendRequest -> fromId', fromId);
+	console.log('exports.patchAcceptFriendRequest -> friendRequestId', friendRequestId);
 
 	try {
-		// delete the friendRequest
-		await FriendRequest.removeFriendRequest(friendRequestId);
-
 		// create a chatRoom between these two users
 		// add the chatRoomId to both userId and fromId
-		const chatRoom = new ChatRoom(fromId, userId);
+		const chatRoom = new ChatRoom(new ObjectId(fromId), new ObjectId(userId));
 		const addedRoom = await chatRoom.addChatRoom();
 		const insertedRoomId = addedRoom.insertedId;
+
+		const notification = new Notification(
+			new ObjectId(userId),
+			new ObjectId(fromId),
+			'has accepted your friend request.'
+		);
 		// remove the friendRequest from the user.friendRequests array
 		// add the fromId to the user.friends array
-		await User.updateUserWithCondition(
-			{ _id: new ObjectId(userId) },
-			{
-				$pull: { friendRequests: new ObjectId(friendRequestId) },
-				$addToSet: { friends: new ObjectId(fromId) },
-				$addToSet: { chats: new ObjectId(insertedRoomId) }
-			}
-		);
+		const userFilter = { _id: new ObjectId(userId) };
+		const fromFilter = { _id: new ObjectId(fromId) };
 
-		// add the userId to the fromId.friends array
-		// add the notification to the user whose id is fromId
-		// create a notification
-		// remove the userId from the user whose id is fromId .friendRequestsUsers
-		const notification = new Notification(userId, fromId, 'has accepted your friend request.');
-
-		const insertedNotification = await notification.addNotification();
-
-		const notificationId = insertedNotification.insertedId;
-
-		await User.updateUserWithCondition(
-			{ _id: new ObjectId(fromId) },
-			{
-				$addToSet: { friends: new ObjectId(userId) },
-				$addToSet: { notifications: new ObjectId(notificationId) },
-				$pull: { friendRequestsUsers: new ObjectId(userId) },
-				$addToSet: { chats: new ObjectId(insertedRoomId) }
-			}
-		);
+		const results = await Promise.all([
+			User.updateUserWithCondition(userFilter, { $addToSet: { chats: new ObjectId(insertedRoomId) } }),
+			User.updateUserWithCondition(userFilter, { $pull: { friendRequests: { _id: { $eq: friendRequestId } } } }),
+			User.updateUserWithCondition(userFilter, {
+				$addToSet: {
+					friends: new ObjectId(fromId)
+				}
+			}),
+			User.updateUserWithCondition(fromFilter, { $addToSet: { chats: new ObjectId(insertedRoomId) } }),
+			User.updateUserWithCondition(fromFilter, { $addToSet: { friends: new ObjectId(userId) } }),
+			User.updateUserWithCondition(fromFilter, { $addToSet: { notifications: notification } }),
+			User.updateUserWithCondition(fromFilter, { $pull: { friendRequestsUsers: new ObjectId(userId) } })
+		]);
 
 		// emit a socket event ('informingNotification')
 		getIo().emit('informingNotification', { from: userId, to: fromId, content: 'friendRequest approval' });
@@ -463,20 +703,21 @@ exports.deleteRemoveNotification = async (req, res, next) => {
 	const { notificationId } = req.params;
 
 	try {
-		// check if this notification related to the user who wants to delete(this won`t happen with 99% percent but just for more insurance while developing)
+		// make sure that the logged in user own this notification
 
-		const notification = await Notification.getNotificationsAggregated({
-			$match: { _id: new ObjectId(notificationId) }
-		});
+		const user = await User.getUser(userId);
 
-		if (notification.to.toString() !== userId.toString())
-			sendError('This user does not own this notification', 403);
+		console.log('exports.deleteRemoveNotification -> user.notifications', user.notifications);
 
-		await Notification.removeNotification(notificationId);
-		await User.updateUserWithCondition(
-			{ _id: new Object(userId) },
-			{ $pull: { notifications: new ObjectId(notificationId) } }
-		);
+		if (user.notifications.length < -1) sendError('This user has no notifications!', 404);
+
+		const foundNotification = user.notifications.find(n => n._id === notificationId);
+
+		if (!foundNotification) sendError('This user does not own this notification', 403);
+
+		await User.removeNotification(userId, notificationId);
+
+		res.status(200).json({ message: 'notification removed successfully', notificationId: notificationId });
 	} catch (error) {
 		if (!error.statusCode) error.statusCode = 500;
 		next(error);

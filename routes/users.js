@@ -41,14 +41,14 @@ router.patch('/unFriend/:friendId', isAuth, usersControllers.patchUnfriend);
 // GET @ /users/sendFriendRequest/:userToAddId
 router.patch('/sendFriendRequest/:userToAddId', isAuth, usersControllers.patchSendFriendRequest);
 
-// GET @ /users/friendRequests
-router.get('/friendRequests', isAuth, usersControllers.getUserFriendRequests);
+// // GET @ /users/friendRequests
+// router.get('/friendRequests', isAuth, usersControllers.getUserFriendRequests);
 
 // DELETE @/users/rejectfriendRequest
 router.delete('/rejectfriendRequest', isAuth, usersControllers.deleteRejectFriendRequest);
 
-// GET @ /users/userNotifications
-router.get('/userNotifications', isAuth, usersControllers.getUserNotifications);
+// // GET @ /users/userNotifications
+// router.get('/userNotifications', isAuth, usersControllers.getUserNotifications);
 
 // PATCH @ /users/acceptFriendRequest
 router.patch('/acceptFriendRequest', isAuth, usersControllers.patchAcceptFriendRequest);

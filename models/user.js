@@ -78,10 +78,16 @@ class User {
 		return db().collection(collectionName).updateOne(filterObj, conditionObj);
 	};
 
+	static removeNotification = (userId, notifcationId) => {
+		return db()
+			.collection(collectionName)
+			.updateOne({ _id: new ObjectId(userId) }, { $pull: { notifications: { _id: { $eq: notifcationId } } } });
+	};
+
 	static removeFriendRequest = (userId, friendRequestId) => {
 		return db()
 			.collection(collectionName)
-			.updateOne({ _id: new ObjectId(userId) }, { $pull: { friendRequests: new ObjectId(friendRequestId) } });
+			.updateOne({ _id: new ObjectId(userId) }, { $pull: { friendRequests: { _id: { $eq: friendRequestId } } } });
 	};
 }
 

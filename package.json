@@ -8,7 +8,9 @@
     "start:dev": "nodemon -r dotenv/config app.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "engines": {  "node": "13.10.1"  },
+  "engines": {
+    "node": "13.10.1"
+  },
   "author": "Mustafa-Mahmoud",
   "license": "ISC",
   "dependencies": {
@@ -19,7 +21,8 @@
     "helmet": "^3.23.3",
     "jsonwebtoken": "^8.5.1",
     "mongodb": "^3.5.9",
-    "socket.io": "^2.3.0"
+    "socket.io": "^2.3.0",
+    "uuid": "^8.2.0"
   },
   "devDependencies": {
     "dotenv": "^8.2.0"

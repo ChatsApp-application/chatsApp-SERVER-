@@ -2,6 +2,7 @@ const jwt = require('jsonwebtoken');
 
 const sendError = require('../helpers/sendError');
 const isAuth = (req, res, next) => {
+	console.log('dev');
 	try {
 		const authHeader = req.get('Authorization');
 		console.log('isAuth -> authHeader', authHeader);

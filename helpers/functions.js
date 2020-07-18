@@ -20,3 +20,21 @@ exports.findMutualFriends = (userX, userY) => {
 
 	return mutualFriends;
 };
+
+exports.checkRelation = (userWhoWatched, user) => {
+	let relation = 'isStranger';
+
+	if (userWhoWatched._id.toString() === user._id.toString()) {
+		relation = 'isOwner'; // isOwner
+	} else if (userWhoWatched.friendRequestsUsers.length > 0) {
+		// check if the user is located in my friendRequestsUsers array
+		const userIsHere = userWhoWatched.friendRequestsUsers.find(id => id.toString() === user._id.toString());
+
+		if (userIsHere) relation = 'isFriendSent'; // isFriendSent
+	} else if (userWhoWatched.friends.length > 0) {
+		const userIshere = userWhoWatched.friends.find(id => id.toString() === user._id.toString());
+		if (userIshere) relation = 'isFriend'; // isFriend
+	}
+
+	return relation;
+};
