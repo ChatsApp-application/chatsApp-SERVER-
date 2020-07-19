@@ -8,7 +8,7 @@ const { getIo } = require('../helpers/socket');
 const ChatRoom = require('../models/chatRoom');
 const checkRelation = require('../helpers/functions').checkRelation;
 const findMutualFriends = require('../helpers/functions').findMutualFriends;
-
+const fRequestIsSent = require('../helpers/functions').fRequestIsSent;
 exports.patchEditUserProfile = async (req, res, next) => {
 	const userId = req.userId;
 
@@ -317,23 +317,7 @@ exports.findPeople = async (req, res, next) => {
 
 		const friendRequestsUsersArr = user.friendRequestsUsers; //Array of userIds(people who sent him a friend request)
 
-		let people;
-		if (friendRequestsUsersArr.length > 0) {
-			people = allUsers.map(person => {
-				for (let friendId of friendRequestsUsersArr) {
-					if (friendId.toString() === person._id.toString()) {
-						return { ...person, sent: true };
-					} else {
-						return { ...person, sent: false };
-					}
-				}
-			});
-		} else {
-			console.log('what!!', false);
-			people = allUsers.map(person => {
-				return { ...person, sent: false };
-			});
-		}
+		let people = fRequestIsSent(friendRequestsUsersArr, allUsers);
 
 		// get the mutual friends
 		if (people.length > 0) {
@@ -720,6 +704,22 @@ exports.deleteRemoveNotification = async (req, res, next) => {
 		await User.removeNotification(userId, notificationId);
 
 		res.status(200).json({ message: 'notification removed successfully', notificationId: notificationId });
+	} catch (error) {
+		if (!error.statusCode) error.statusCode = 500;
+		next(error);
+	}
+};
+
+exports.uploadPP = async (req, res, next) => {
+	const userId = req.userId;
+
+	console.log('exports.uploadPP -> userId', userId);
+	try {
+		const img = req.file;
+
+		console.log(img);
+
+		res.status(200).json({ img: img });
 	} catch (error) {
 		if (!error.statusCode) error.statusCode = 500;
 		next(error);

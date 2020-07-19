@@ -16,6 +16,7 @@ class User {
 		this.email = email;
 		this.password = password;
 		// advanced properties
+		this.imageUrl = null;
 		this.bio = 'Hey there, Iam using chatsApp!';
 		this.online = false;
 		this.friendRequestsUsers = [];

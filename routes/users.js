@@ -4,7 +4,7 @@ const usersControllers = require('../controllers/users');
 const isAuth = require('../middlewares/isAuth');
 const checkValidation = require('../middlewares/checkValidation');
 const router = express.Router();
-
+const multerUpload = require('../middlewares/multerUpload');
 // GET @ /users/userAfterLogin
 router.get('/userAFterLogin', isAuth, usersControllers.getUserAfterLogin);
 
@@ -56,4 +56,5 @@ router.patch('/acceptFriendRequest', isAuth, usersControllers.patchAcceptFriendR
 //  DELETE @ /users/removeNotification/:notificationId
 router.delete('/removeNotification/:notificationId', isAuth, usersControllers.deleteRemoveNotification);
 
+router.post('/users/uploadPP', isAuth, multerUpload, usersControllers.uploadPP);
 module.exports = router;

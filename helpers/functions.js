@@ -38,3 +38,25 @@ exports.checkRelation = (userWhoWatched, user) => {
 
 	return relation;
 };
+
+exports.fRequestIsSent = (friendRequestsUsersArr, allUsers) => {
+	let people;
+	if (friendRequestsUsersArr.length > 0) {
+		people = allUsers.map(person => {
+			let foundUserId = friendRequestsUsersArr.find(id => id.toString() === person._id.toString());
+
+			if (foundUserId) {
+				return { ...person, sent: true };
+			} else {
+				return { ...person, sent: false };
+			}
+		});
+	} else {
+		console.log('what!!', false);
+		people = allUsers.map(person => {
+			return { ...person, sent: false };
+		});
+	}
+
+	return people;
+};
