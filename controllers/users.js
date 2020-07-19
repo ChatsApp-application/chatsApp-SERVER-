@@ -50,7 +50,8 @@ exports.getUserAfterLogin = async (req, res, next) => {
 					gender: 1,
 					online: 1,
 					bio: 1,
-					country: 1
+					country: 1,
+					img: 1
 				}
 			}
 		]);
@@ -71,7 +72,8 @@ exports.getUserAfterLogin = async (req, res, next) => {
 						gender: 1,
 						online: 1,
 						bio: 1,
-						country: 1
+						country: 1,
+						img: 1
 					}
 				},
 
@@ -174,7 +176,8 @@ exports.getUserAfterLogin = async (req, res, next) => {
 						gender: 1,
 						online: 1,
 						bio: 1,
-						country: 1
+						country: 1,
+						img: 1
 					}
 				},
 
@@ -234,7 +237,8 @@ exports.getUserAfterLogin = async (req, res, next) => {
 						gender: 1,
 						online: 1,
 						bio: 1,
-						country: 1
+						country: 1,
+						img: 1
 					}
 				},
 				{ $unwind: '$friendRequests' },
