@@ -56,5 +56,10 @@ router.patch('/acceptFriendRequest', isAuth, usersControllers.patchAcceptFriendR
 //  DELETE @ /users/removeNotification/:notificationId
 router.delete('/removeNotification/:notificationId', isAuth, usersControllers.deleteRemoveNotification);
 
-router.post('/users/uploadPP', isAuth, multerUpload, usersControllers.uploadPP);
+// POST @ /users/uploadPP
+router.post('/uploadPP', isAuth, multerUpload.single('image'), usersControllers.uploadPP);
+
+// PATCH @ /users/editPP/:publicId
+router.patch('/editPP/:publicId', isAuth, multerUpload.single('image'), usersControllers.editPP);
+
 module.exports = router;

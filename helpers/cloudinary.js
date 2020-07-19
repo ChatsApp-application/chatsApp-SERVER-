@@ -1,3 +1,5 @@
+const { options } = require('../routes/auth');
+
 var cloudinary = require('cloudinary').v2;
 
 cloudinary.config({
@@ -6,19 +8,23 @@ cloudinary.config({
 	api_secret: process.env.CLOUDINARY_SECRET
 });
 
-const cloudinaryUpload = (file, folder) => {
-	return new Promise(resolve => {
-		cloudinary.uploader.upload(
-			file,
-			result => {
-				resolve({ url: result.url, id: result.public_id });
-			},
-			{
-				resource_type: 'auto',
-				folder: folder
-			}
-		);
+const cloudinaryUploader = (file, folder) => {
+	return new Promise((resolve, reject) => {
+		cloudinary.uploader.upload(file, { folder: folder, type: 'upload' }, (err, result) => {
+			console.log('cloudinaryUploader -> err', err);
+			if (err) reject('File have not been uploaded.');
+			resolve(result);
+		});
 	});
 };
 
-module.exports = cloudinaryUpload;
+const cloudinaryRemoval = publikId => {
+	return new Promise((resolve, reject) => {
+		cloudinary.uploader.destroy(`chatsApp/${publikId}`, {}, (err, result) => {
+			console.log('err', err);
+			if (err) reject('File did not removed from the cloud');
+			resolve('file have been removed');
+		});
+	});
+};
+module.exports = { cloudinaryUploader: cloudinaryUploader, cloudinaryRemoval: cloudinaryRemoval };

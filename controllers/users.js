@@ -1,3 +1,5 @@
+const fs = require('fs');
+const cloudinary = require('cloudinary').v2;
 const User = require('../models/user');
 const FriendRequest = require('../models/friendRequest');
 const Notification = require('../models/notifications');
@@ -9,6 +11,8 @@ const ChatRoom = require('../models/chatRoom');
 const checkRelation = require('../helpers/functions').checkRelation;
 const findMutualFriends = require('../helpers/functions').findMutualFriends;
 const fRequestIsSent = require('../helpers/functions').fRequestIsSent;
+const cloudinaryUploader = require('../helpers/cloudinary').cloudinaryUploader;
+const cloudinaryRemoval = require('../helpers/cloudinary').cloudinaryRemoval;
 exports.patchEditUserProfile = async (req, res, next) => {
 	const userId = req.userId;
 
@@ -712,14 +716,78 @@ exports.deleteRemoveNotification = async (req, res, next) => {
 
 exports.uploadPP = async (req, res, next) => {
 	const userId = req.userId;
-
-	console.log('exports.uploadPP -> userId', userId);
 	try {
-		const img = req.file;
+		const imgFile = req.file;
 
-		console.log(img);
+		if (!imgFile) sendError('File was not passed!', 422);
 
-		res.status(200).json({ img: img });
+		console.log('exports.uploadPP -> imgFile', imgFile);
+		const imagePath = imgFile.path.replace('\\', '/');
+
+		console.log('exports.uploadPP -> imagePath', imagePath);
+
+		const { secure_url, public_id } = await cloudinaryUploader(imagePath, 'chatsApp');
+
+		const publikIdToBeSent = public_id.split('/')[1];
+
+		const imgObj = { url: secure_url, publicId: publikIdToBeSent };
+		// const rootDir = path.dirname(process.mainModule.filename);
+
+		await User.updateUserWithCondition({ _id: new ObjectId(userId) }, { $set: { img: imgObj } });
+
+		fs.unlink(imagePath, error => {
+			if (error) throw error;
+		});
+
+		res.status(200).json({ message: 'Image uploaded successfully.', img: imgObj });
+	} catch (error) {
+		if (!error.statusCode) error.statusCode = 500;
+		next(error);
+	}
+};
+
+exports.editPP = async (req, res, next) => {
+	const userId = req.userId;
+	console.log('exports.editPP -> userId', userId);
+
+	// old img public_id
+	const { publicId } = req.params;
+	console.log('exports.editPP -> publicId', publicId);
+
+	// new img
+
+	try {
+		const imageFile = req.file;
+		console.log('exports.editPP -> imgFile', imageFile);
+		if (!imageFile) sendError('The User didn`t path the new file', 422);
+
+		const imagePath = imageFile.path.replace('\\', '/');
+		console.log('exports.editPP -> imagePath', imagePath);
+
+		const user = await User.getUser(userId);
+		console.log('exports.editPP -> user', user);
+
+		if (!user) sendError('User with given id not found', 404);
+
+		const { secure_url, public_id } = await cloudinaryUploader(imagePath, 'chatsApp');
+		console.log('exports.editPP -> public_id', public_id);
+
+		const publicIdToBeSent = public_id.split('/')[1];
+
+		const imgObj = { url: secure_url, publicId: publicIdToBeSent };
+
+		await User.updateUserWithCondition({ _id: new ObjectId(userId) }, { $set: { img: imgObj } });
+
+		console.log('reached here !!!!');
+		const result = await cloudinaryRemoval(publicId);
+
+		console.log('exports.editPP -> result', result);
+
+		fs.unlink(imagePath, error => {
+			if (error) throw error;
+		});
+
+		res.status(200).json({ message: 'profile picture updated successfully', img: imgObj });
 	} catch (error) {
 		if (!error.statusCode) error.statusCode = 500;
 		next(error);

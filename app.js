@@ -1,17 +1,16 @@
 const express = require('express');
-const app = express();
-
+const path = require('path');
 const initDb = require('./helpers/db').initDb;
 const initIo = require('./helpers/socket').initIo;
-
+const app = express();
 const bodyParser = require('body-parser');
 const helmet = require('helmet');
+// const multer = require('multer');
 
 const authRoutes = require('./routes/auth');
 const usersRoutes = require('./routes/users');
 
 const usersSockets = require('./sockets/users');
-
 // allow CORS
 app.use((req, res, next) => {
 	res.setHeader('Access-Control-Allow-Origin', '*');
@@ -19,6 +18,8 @@ app.use((req, res, next) => {
 	res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type');
 	next();
 });
+
+// app.use('/images', express.static(path.join(__dirname, 'images')));
 
 app.use(helmet());
 app.use(bodyParser.json());
@@ -29,8 +30,9 @@ app.use('/users', usersRoutes);
 
 // error handler middleware
 app.use((error, req, res, next) => {
+	console.log('error', error);
 	const errorMessage = error.message ? error.message : 'something went wrong';
-	const statusCode = error.statusCode;
+	const statusCode = error.statusCode ? error.statusCode : 500;
 	console.log('statusCode', statusCode);
 
 	res.status(statusCode).json({ error: errorMessage });
@@ -48,7 +50,7 @@ initDb((error, client) => {
 			httpServer = app.listen(process.env.PORT);
 		} else {
 			console.log('Development');
-			httpServer = app.listen(1000);
+			httpServer = app.listen(1501);
 		}
 		const io = initIo(httpServer);
 		// listening to our only namespace => '/'
