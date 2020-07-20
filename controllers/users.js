@@ -13,6 +13,7 @@ const findMutualFriends = require('../helpers/functions').findMutualFriends;
 const fRequestIsSent = require('../helpers/functions').fRequestIsSent;
 const cloudinaryUploader = require('../helpers/cloudinary').cloudinaryUploader;
 const cloudinaryRemoval = require('../helpers/cloudinary').cloudinaryRemoval;
+
 exports.patchEditUserProfile = async (req, res, next) => {
 	const userId = req.userId;
 
@@ -340,6 +341,7 @@ exports.findPeople = async (req, res, next) => {
 					country: person.country,
 					gender: person.gender,
 					sent: person.sent,
+					img: person.img,
 					mutualFriends
 				};
 			});
@@ -352,10 +354,10 @@ exports.findPeople = async (req, res, next) => {
 	}
 };
 
-// we need a socket here
+// socket handled
 exports.visitProfile = async (req, res, next) => {
-	const whoWatchedId = req.userId;
-	const { userId } = req.params;
+	const whoWatchedId = req.userId; // the uyser who watched
+	const { userId } = req.params; // the user to get his data
 
 	try {
 		// the user who we are on his profile
@@ -408,7 +410,21 @@ exports.visitProfile = async (req, res, next) => {
 				{ $addToSet: { notifications: notification } }
 			);
 
-			getIo().emit('informingNotification', { from: whoWatchedId, to: userId });
+			getIo().emit('viewProfileNotification', {
+				notification: {
+					_id: notification._id,
+					from: userWhoWatched._id,
+					fromUser: {
+						_id: userWhoWatched._id,
+						firstName: userWhoWatched.firstName,
+						lastName: userWhoWatched.lastName,
+						img: userWhoWatched.img
+					},
+					data: notification.data, //date (typo)
+					message: notification.message
+				},
+				to: userId
+			});
 		}
 		res.status(200).json({ user: user });
 	} catch (error) {
@@ -488,7 +504,7 @@ exports.patchUnfriend = async (req, res, next) => {
 	}
 };
 
-// we need a socket here //edited
+// socket handled
 exports.patchSendFriendRequest = async (req, res, next) => {
 	const userId = req.userId;
 	const { userToAddId } = req.params;
@@ -501,6 +517,7 @@ exports.patchSendFriendRequest = async (req, res, next) => {
 		// make him a frien and emit a socket event
 
 		const userToAdd = await User.getUser(userToAddId);
+		const user = await User.getUser(userId);
 
 		const friendRequestsUsers = userToAdd.friendRequestsUsers;
 
@@ -509,8 +526,6 @@ exports.patchSendFriendRequest = async (req, res, next) => {
 
 			if (foundUser) {
 				// userToAdd sent him first, make them friends
-
-				const user = await User.getUser(userId);
 
 				const hisFriendRequest = user.friendRequests.find(
 					fReq => fReq.from.toString() === userToAddId.toString()
@@ -534,6 +549,7 @@ exports.patchSendFriendRequest = async (req, res, next) => {
 					new ObjectId(userId),
 					'and you are now friends.'
 				);
+
 				// remove the friendRequest from the user.friendRequests array
 				// add the fromId to the user.friends array
 				const userFilter = { _id: new ObjectId(userId) };
@@ -558,9 +574,30 @@ exports.patchSendFriendRequest = async (req, res, next) => {
 
 				// emit a socket event ('informingNotificationForBoth')
 				getIo().emit('informingNotificationForBoth', {
-					from: userId,
-					to: userToAddId,
-					content: 'automaticFriending'
+					notificationForUser: {
+						_id: notificationForUser._id,
+						from: user._id.toString(),
+						fromUser: {
+							_id: user._id.toString(),
+							firstName: user.firstName,
+							lastName: user.lastName,
+							img: user.img
+						},
+						data: notificationForUser.data, //date
+						message: notificationForUser.message
+					},
+
+					notificationForAddTo: {
+						_id: notificationForAddTo._id,
+						fromUser: {
+							_id: userToAdd._id.toString(),
+							firstName: userToAdd.firstName,
+							lastName: userToAdd.lastName,
+							img: userToAdd.img
+						},
+						data: notificationForAddTo.data, //date,
+						message: 'and you are friends now'
+					}
 				});
 
 				return res.status(200).json({
@@ -590,7 +627,22 @@ exports.patchSendFriendRequest = async (req, res, next) => {
 		);
 
 		// emit an event with the new notification to userToAddId => the frontend will only increase the numbers of notifications by 1
-		getIo().emit('friendRequestNotification', { from: userId, to: userToAddId });
+		getIo().emit('friendRequest', {
+			friendRequest: {
+				_id: friendRequest._id,
+				from: user._id,
+				type: 'friendRequest',
+				fromUser: {
+					firstName: user.firstName,
+					lastName: user.lastName,
+					img: user.img,
+					gender: user.gender,
+					country: user.country
+				},
+				date: friendRequest.date // date
+			},
+			to: userToAddId
+		});
 
 		res.status(200).json({
 			message: 'Friend request sent successfully',
@@ -603,10 +655,13 @@ exports.patchSendFriendRequest = async (req, res, next) => {
 	}
 };
 
+// socket handled
 exports.deleteRejectFriendRequest = async (req, res, next) => {
-	const userId = req.userId;
-	const { friendRequestId, fromId } = req.query;
+	const userId = req.userId; // the user who rejected
+	const { friendRequestId, fromId } = req.query; // the user who sent the request
 	try {
+		const user = await User.getUser(userId);
+
 		// remove this notification from the user.friendRequest array
 		await User.removeFriendRequest(userId, friendRequestId);
 
@@ -629,7 +684,21 @@ exports.deleteRejectFriendRequest = async (req, res, next) => {
 		);
 
 		// emit a socket event with the notification id, fromId, toId
-		getIo().emit('informingNotification', { from: userId, to: fromId, content: 'friendRequest rejection' });
+		getIo().emit('informingNotification', {
+			notification: {
+				_id: notification._id,
+				from: user._id.toString(),
+				fromUser: {
+					_id: user.id.toString(),
+					fristName: user.firstName,
+					lastName: user.lastName,
+					img: user.img
+				},
+				data: notification.data, //date (typo),
+				message: notification.message
+			},
+			to: fromId
+		});
 
 		res.status(200).json({
 			message: 'Friend request rejected successfully',
@@ -643,13 +712,14 @@ exports.deleteRejectFriendRequest = async (req, res, next) => {
 };
 
 exports.patchAcceptFriendRequest = async (req, res, next) => {
-	const userId = req.userId;
+	const userId = req.userId; // the user who accepted
 	console.log('exports.patchAcceptFriendRequest -> userId', userId);
 	const { friendRequestId, fromId } = req.body;
 	console.log('exports.patchAcceptFriendRequest -> fromId', fromId);
 	console.log('exports.patchAcceptFriendRequest -> friendRequestId', friendRequestId);
 
 	try {
+		const user = await User.getUser(userId);
 		// create a chatRoom between these two users
 		// add the chatRoomId to both userId and fromId
 		const chatRoom = new ChatRoom(new ObjectId(fromId), new ObjectId(userId));
@@ -666,7 +736,7 @@ exports.patchAcceptFriendRequest = async (req, res, next) => {
 		const userFilter = { _id: new ObjectId(userId) };
 		const fromFilter = { _id: new ObjectId(fromId) };
 
-		const results = await Promise.all([
+		await Promise.all([
 			User.updateUserWithCondition(userFilter, { $addToSet: { chats: new ObjectId(insertedRoomId) } }),
 			User.updateUserWithCondition(userFilter, { $pull: { friendRequests: { _id: { $eq: friendRequestId } } } }),
 			User.updateUserWithCondition(userFilter, {
@@ -681,7 +751,22 @@ exports.patchAcceptFriendRequest = async (req, res, next) => {
 		]);
 
 		// emit a socket event ('informingNotification')
-		getIo().emit('informingNotification', { from: userId, to: fromId, content: 'friendRequest approval' });
+		getIo().emit('informingNotification', {
+			notification: {
+				_id: notification._id,
+				from: user._id.toString(),
+				fromUser: {
+					_id: user._id.toString(),
+					firstName: user.firstName,
+					lastName: user.lastName,
+					img: user.img
+				},
+				data: notification.data, // date (typo)
+				message: notification.message
+			},
+			to: fromId,
+			content: 'friendRequest approval'
+		});
 
 		res
 			.status(200)
