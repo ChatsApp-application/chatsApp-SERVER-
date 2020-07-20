@@ -569,34 +569,34 @@ exports.patchSendFriendRequest = async (req, res, next) => {
 					to: userToAddId
 				});
 			}
-		} else {
-			console.log('reached here');
-			const friendRequest = new FriendRequest(new ObjectId(userId), new ObjectId(userToAddId));
-			// get the notificationId
-
-			// add this friendRequest to the userToAdd friendRequests array
-			await User.updateUserWithCondition(
-				{ _id: new ObjectId(userToAddId) },
-				{
-					$addToSet: { friendRequests: friendRequest }
-				}
-			);
-			console.log('and here');
-			// add the userToAddId in the friendRequestsUser array to make him recogonized as (sent)
-			await User.updateUserWithCondition(
-				{ _id: new ObjectId(userId) },
-				{ $addToSet: { friendRequestsUsers: new ObjectId(userToAddId) } }
-			);
-
-			// emit an event with the new notification to userToAddId => the frontend will only increase the numbers of notifications by 1
-			getIo().emit('friendRequestNotification', { from: userId, to: userToAddId });
-
-			res.status(200).json({
-				message: 'Friend request sent successfully',
-				from: userId,
-				to: userToAddId
-			});
 		}
+		console.log('reached here');
+		const friendRequest = new FriendRequest(new ObjectId(userId), new ObjectId(userToAddId));
+		// get the notificationId
+
+		console.log('exports.patchSendFriendRequest -> and here', 'and here');
+		// add this friendRequest to the userToAdd friendRequests array
+		await User.updateUserWithCondition(
+			{ _id: new ObjectId(userToAddId) },
+			{
+				$addToSet: { friendRequests: friendRequest }
+			}
+		);
+		console.log('and here');
+		// add the userToAddId in the friendRequestsUser array to make him recogonized as (sent)
+		await User.updateUserWithCondition(
+			{ _id: new ObjectId(userId) },
+			{ $addToSet: { friendRequestsUsers: new ObjectId(userToAddId) } }
+		);
+
+		// emit an event with the new notification to userToAddId => the frontend will only increase the numbers of notifications by 1
+		getIo().emit('friendRequestNotification', { from: userId, to: userToAddId });
+
+		res.status(200).json({
+			message: 'Friend request sent successfully',
+			from: userId,
+			to: userToAddId
+		});
 	} catch (error) {
 		if (!error.statusCode) error.statusCode = 500;
 		next(error);
