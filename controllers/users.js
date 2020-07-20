@@ -609,7 +609,6 @@ exports.patchSendFriendRequest = async (req, res, next) => {
 		}
 		console.log('reached here');
 		const friendRequest = new FriendRequest(new ObjectId(userId), new ObjectId(userToAddId));
-		// get the notificationId
 
 		console.log('exports.patchSendFriendRequest -> and here', 'and here');
 		// add this friendRequest to the userToAdd friendRequests array
@@ -633,6 +632,7 @@ exports.patchSendFriendRequest = async (req, res, next) => {
 				from: user._id,
 				type: 'friendRequest',
 				fromUser: {
+					_id: user._id.toString(),
 					firstName: user.firstName,
 					lastName: user.lastName,
 					img: user.img,
@@ -689,7 +689,7 @@ exports.deleteRejectFriendRequest = async (req, res, next) => {
 				_id: notification._id,
 				from: user._id.toString(),
 				fromUser: {
-					_id: user.id.toString(),
+					_id: user._id.toString(),
 					fristName: user.firstName,
 					lastName: user.lastName,
 					img: user.img
