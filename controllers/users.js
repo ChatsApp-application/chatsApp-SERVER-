@@ -605,7 +605,7 @@ exports.patchSendFriendRequest = async (req, res, next) => {
 
 exports.deleteRejectFriendRequest = async (req, res, next) => {
 	const userId = req.userId;
-	const { friendRequestId, fromId } = req.body;
+	const { friendRequestId, fromId } = req.query;
 	try {
 		// remove this notification from the user.friendRequest array
 		await User.removeFriendRequest(userId, friendRequestId);
