@@ -25,15 +25,26 @@ exports.checkRelation = (userWhoWatched, user) => {
 	let relation = 'isStranger';
 
 	if (userWhoWatched._id.toString() === user._id.toString()) {
-		relation = 'isOwner'; // isOwner
-	} else if (userWhoWatched.friendRequestsUsers.length > 0) {
+		console.log('isOwner');
+
+		return (relation = 'isOwner'); // isOwner
+	}
+
+	if (userWhoWatched.friendRequestsUsers.length > 0) {
+		console.log('isFriendSent');
+
 		// check if the user is located in my friendRequestsUsers array
 		const userIsHere = userWhoWatched.friendRequestsUsers.find(id => id.toString() === user._id.toString());
 
-		if (userIsHere) relation = 'isFriendSent'; // isFriendSent
-	} else if (userWhoWatched.friends.length > 0) {
+		if (userIsHere) return (relation = 'isFriendSent'); // isFriendSent
+	}
+
+	if (userWhoWatched.friends.length > 0) {
 		const userIshere = userWhoWatched.friends.find(id => id.toString() === user._id.toString());
-		if (userIshere) relation = 'isFriend'; // isFriend
+
+		console.log('isFriend');
+
+		if (userIshere) return (relation = 'isFriend'); // isFriend
 	}
 
 	return relation;

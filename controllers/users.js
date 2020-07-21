@@ -690,7 +690,7 @@ exports.deleteRejectFriendRequest = async (req, res, next) => {
 				from: user._id.toString(),
 				fromUser: {
 					_id: user._id.toString(),
-					fristName: user.firstName,
+					firstName: user.firstName,
 					lastName: user.lastName,
 					img: user.img
 				},
