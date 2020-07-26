@@ -13,11 +13,11 @@ class ChatRoom {
 		return db().collection(collectionName).insertOne(this);
 	};
 
-	getChatRoomAggregated = aggregationArray => {
+	static getChatRoomAggregated = aggregationArray => {
 		return db().collection(collectionName).aggregate(aggregationArray).next();
 	};
 
-	getChatRoomsAggregated = aggregationArray => {
+	static getChatRoomsAggregated = aggregationArray => {
 		return db().collection(collectionName).aggregate(aggregationArray).toArray();
 	};
 }

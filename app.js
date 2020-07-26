@@ -50,7 +50,7 @@ initDb((error, client) => {
 			httpServer = app.listen(process.env.PORT);
 		} else {
 			console.log('Development');
-			httpServer = app.listen(1501);
+			httpServer = app.listen(1502);
 		}
 		const io = initIo(httpServer);
 		// listening to our only namespace => '/'
@@ -59,8 +59,21 @@ initDb((error, client) => {
 			console.log(socket.id);
 			// userOfline
 			socket.on('userOfline', data => {
-				const { userId } = data;
-				usersSockets.userOfline(userId);
+				usersSockets.userOfline(data.userToken);
+			});
+
+			// when the user request his chats
+			socket.on('onChats', data => {
+				usersSockets.onChats(data.userToken);
+			});
+
+			// when the user joins a room
+			socket.on('joinRoom', data => {
+				usersSockets.joinChatRoom(socket, data.chatRoomId, data.userToken);
+			});
+
+			socket.on('privateMessage', data => {
+				usersSockets.sendPrivateMessage(socket, data.messageData, data.userToken);
 			});
 		});
 	}

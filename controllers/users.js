@@ -410,7 +410,7 @@ exports.visitProfile = async (req, res, next) => {
 				{ $addToSet: { notifications: notification } }
 			);
 
-			getIo().emit('viewProfileNotification', {
+			getIo().emit('informingNotification', {
 				notification: {
 					_id: notification._id,
 					from: userWhoWatched._id,
@@ -477,7 +477,7 @@ exports.getFriends = async (req, res, next) => {
 };
 
 // we need a socket here..
-exports.patchUnfriend = async (req, res, next) => {
+exports.patchUnfriend = async (req, fres, next) => {
 	const { userId } = req;
 	const { friendId } = req.params;
 
@@ -596,7 +596,7 @@ exports.patchSendFriendRequest = async (req, res, next) => {
 							img: userToAdd.img
 						},
 						data: notificationForAddTo.data, //date,
-						message: 'and you are friends now'
+						message: notificationForAddTo.message
 					}
 				});
 
@@ -765,7 +765,7 @@ exports.patchAcceptFriendRequest = async (req, res, next) => {
 				message: notification.message
 			},
 			to: fromId,
-			content: 'friendRequest approval'
+			content: 'friendRequest approval' // indicates that the user accepted the friend so the frontend will go and get the friends again
 		});
 
 		res

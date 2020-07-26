@@ -14,7 +14,6 @@ router.patch(
 	[
 		body('firstName', 'FirstName must not be empty and in characters').trim().notEmpty().isAlpha(),
 		body('lastName', 'LastName must not be empty and in characters').trim().notEmpty().isAlpha(),
-		body('email', 'Email is not a valid email').trim().isEmail(),
 		body('country', 'Country must not be empty, only in characters').trim().isAlpha(),
 		body('age', 'Age must be in numbers').trim().isNumeric(),
 		body('gender', 'Gender must not be empty').trim().notEmpty(),
