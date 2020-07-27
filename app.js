@@ -59,7 +59,7 @@ initDb((error, client) => {
 		// AGENDA
 		// TIME INTERVAL JOBS
 		const Agenda = require('agenda');
-		const agenda = new Agenda({ mongo: client.db('chatsApp'), db: { collection: 'users' } });
+		const agenda = new Agenda({ mongo: client.db('chatsApp'), db: { collection: 'agenda' } });
 
 		agenda.define('cleanProfileViewers', async (job, done) => {
 			await User.updateUsersWithACondition({}, { $set: { profileViewers: [] } });

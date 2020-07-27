@@ -288,7 +288,7 @@ exports.getUserAfterLogin = async (req, res, next) => {
 		}
 
 		user.friendRequests.sort((a, b) => b.date - a.date);
-		user.notifications.sort((a, b) => b.date - a.date);
+		user.notifications.sort((a, b) => b.data - a.data);
 
 		res.status(200).json({ message: 'User fetched successfully', user: user });
 	} catch (error) {
