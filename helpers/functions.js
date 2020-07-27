@@ -1,4 +1,6 @@
 exports.findMutualFriends = (userX, userY) => {
+	console.log('exports.findMutualFriends -> userY', userY);
+	console.log('exports.findMutualFriends -> userX', userX);
 	// BIG O N
 	// this function will receive userX and userY
 	// userX  will have the aggregated userFriends

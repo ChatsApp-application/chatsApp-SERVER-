@@ -300,7 +300,6 @@ exports.getUserAfterLogin = async (req, res, next) => {
 exports.findPeople = async (req, res, next) => {
 	let { userId } = req;
 	userId = userId.toString();
-	console.log('exports.findPeople -> userId', userId);
 
 	// grap the user with its id
 	// get the user.friendRequestsUsers array
@@ -310,7 +309,6 @@ exports.findPeople = async (req, res, next) => {
 	try {
 		const user = await User.getUserAggregatedFixed(userId);
 
-		console.log('exports.findPeople -> user', user);
 		if (!user) sendError('User with given Id does not exist', 404);
 
 		const userFriendsArr = user.friends; // Array of userIds
@@ -324,7 +322,6 @@ exports.findPeople = async (req, res, next) => {
 			},
 			{ $project: { password: 0, email: 0, notifications: 0, chats: 0, groups: 0 } }
 		]);
-		console.log('exports.findPeople -> allUsers', allUsers);
 
 		const friendRequestsUsersArr = user.friendRequestsUsers; //Array of userIds(people who sent him a friend request)
 

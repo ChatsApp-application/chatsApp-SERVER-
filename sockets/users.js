@@ -243,9 +243,12 @@ exports.sendPrivateMessage = async (socket, messageData, userToken) => {
 		const quickMessageForOtherUser = {
 			_id: newMessage._id,
 			date: newMessage.date,
-			seen: newMessage.seen, // always false as initial a value
-			firstName: firstName,
-			lastName: lastName,
+			seen: newMessage.seen,
+			fromUser: {
+				_id: from,
+				firstName: firstName,
+				lastName: lastName
+			},
 			message: message
 		};
 
