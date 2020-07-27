@@ -1,5 +1,4 @@
 const fs = require('fs');
-const cloudinary = require('cloudinary').v2;
 const User = require('../models/user');
 const FriendRequest = require('../models/friendRequest');
 const Notification = require('../models/notifications');
@@ -288,6 +287,9 @@ exports.getUserAfterLogin = async (req, res, next) => {
 			user = foundUser;
 		}
 
+		user.friendRequests.sort((a, b) => b.date - a.date);
+		user.notifications.sort((a, b) => b.date - a.date);
+
 		res.status(200).json({ message: 'User fetched successfully', user: user });
 	} catch (error) {
 		if (!error.statusCode) error.statusCode = 500;
@@ -354,9 +356,9 @@ exports.findPeople = async (req, res, next) => {
 	}
 };
 
-// socket handled
+// socket handled (editing is required for user X has viewd your profile feature)
 exports.visitProfile = async (req, res, next) => {
-	const whoWatchedId = req.userId; // the uyser who watched
+	const whoWatchedId = req.userId; // the user who watched
 	const { userId } = req.params; // the user to get his data
 
 	try {
@@ -398,7 +400,7 @@ exports.visitProfile = async (req, res, next) => {
 
 		// make a notification and send it to user (the user we are watching him) to inform him that somebody saw his profile but make sure to prevent this if the relation === isOwner
 
-		if (relation !== 'isOwner') {
+		if (relation !== 'isOwner' && !user.profileViewers.includes(userWhoWatched.toString())) {
 			const notification = new Notification(
 				new ObjectId(whoWatchedId),
 				new ObjectId(userId),
@@ -408,6 +410,12 @@ exports.visitProfile = async (req, res, next) => {
 			await User.updateUserWithCondition(
 				{ _id: new ObjectId(userId) },
 				{ $addToSet: { notifications: notification } }
+			);
+
+			// add the user who watched in the user.profileViewrs which will get cleaned every 24h
+			await User.updateUserWithCondition(
+				{ _id: new ObjectId(userId) },
+				{ $addToSet: { profileViewers: userWhoWatched.toString() } }
 			);
 
 			getIo().emit('informingNotification', {
@@ -477,12 +485,13 @@ exports.getFriends = async (req, res, next) => {
 };
 
 // we need a socket here..
-exports.patchUnfriend = async (req, fres, next) => {
+exports.patchUnfriend = async (req, res, next) => {
 	const { userId } = req;
 	const { friendId } = req.params;
 
 	try {
 		// remove the friendID from the user`s friends arr
+
 		await User.updateUserWithCondition(
 			{ _id: new ObjectId(userId) },
 			{ $pull: { friends: new ObjectId(friendId) } }
@@ -493,6 +502,23 @@ exports.patchUnfriend = async (req, fres, next) => {
 			{ _id: new ObjectId(friendId) },
 			{ $pull: { friends: new ObjectId(userId) } }
 		);
+
+		const sharedRoom = await ChatRoom.getSharedChatRoom(userId, friendId);
+
+		const sharedRoomId = new ObjectId(sharedRoom._id);
+
+		await ChatRoom.deleteChatRoom(userId, friendId);
+
+		// remove the chat from both users.chats
+
+		await User.updateUserWithCondition(
+			{ _id: new ObjectId(userId) },
+			{
+				$pull: { chats: sharedRoomId }
+			}
+		);
+
+		await User.updateUserWithCondition({ _id: new ObjectId(friendId) }, { $pull: { chats: sharedRoomId } });
 
 		// emit this to all his friends so we can remove him from all his friends clients
 		getIo().emit('unFriend', { userId: userId, friendId: friendId });

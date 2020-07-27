@@ -1,3 +1,5 @@
+const { ObjectId } = require('mongodb');
+
 const collectionName = 'chatRooms';
 const db = require('../helpers/db').getDb;
 
@@ -19,6 +21,31 @@ class ChatRoom {
 
 	static getChatRoomsAggregated = aggregationArray => {
 		return db().collection(collectionName).aggregate(aggregationArray).toArray();
+	};
+
+	static detectSharedRoom = (userId, friendId) => {
+		const sharedRoomQuery = {
+			$or: [
+				{ $and: [ { userOne: { $eq: new ObjectId(userId) } }, { userTwo: new ObjectId(friendId) } ] },
+				{
+					$and: [ { userOne: { $eq: new ObjectId(friendId) } }, { userTwo: { $eq: new ObjectId(userId) } } ]
+				}
+			]
+		};
+
+		return sharedRoomQuery;
+	};
+
+	static getSharedChatRoom = (userId, friendId) => {
+		const sharedRoomQuery = this.detectSharedRoom(userId, friendId);
+
+		return db().collection(collectionName).findOne(sharedRoomQuery);
+	};
+
+	static deleteChatRoom = (userId, friendId) => {
+		const sharedRoomQuery = this.detectSharedRoom(userId, friendId);
+
+		return db().collection(collectionName).deleteOne(sharedRoomQuery);
 	};
 }
 

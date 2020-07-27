@@ -3,17 +3,20 @@ const mongodb = require('mongodb');
 const MongoClient = mongodb.MongoClient;
 
 let _db;
+let _client;
 // connecting url
 const mongoUrl = `mongodb+srv://${process.env.DB_USER}:${process.env
 	.DB_PASS}@chatsapp-cluster.bz2fz.mongodb.net/chatsApp?retryWrites=true&w=majority`;
 
 exports.initDb = async cb => {
-	if (_db) return cb(null, _db);
+	if (_db) return cb(null, _client);
 
 	try {
-		const client = await MongoClient.connect(mongoUrl, { useUnifiedTopology: true });
-		_db = client.db();
-		cb(null, client);
+		_client = await MongoClient.connect(mongoUrl, { useUnifiedTopology: true });
+
+		_db = _client.db();
+
+		cb(null, _client);
 	} catch (error) {
 		cb(error, null);
 	}

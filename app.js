@@ -9,8 +9,10 @@ const helmet = require('helmet');
 
 const authRoutes = require('./routes/auth');
 const usersRoutes = require('./routes/users');
-
+const groupRoutes = require('./routes/groups');
 const usersSockets = require('./sockets/users');
+const User = require('./models/user');
+const { ObjectId } = require('mongodb');
 // allow CORS
 app.use((req, res, next) => {
 	res.setHeader('Access-Control-Allow-Origin', '*');
@@ -24,9 +26,9 @@ app.use((req, res, next) => {
 app.use(helmet());
 app.use(bodyParser.json());
 
-// auth routes
 app.use('/auth', authRoutes);
 app.use('/users', usersRoutes);
+app.use('/groups', groupRoutes);
 
 // error handler middleware
 app.use((error, req, res, next) => {
@@ -41,6 +43,7 @@ app.use((error, req, res, next) => {
 // initializing the database using native mongoDB driver
 initDb((error, client) => {
 	if (error) {
+		console.log('error', error);
 		console.log('Failed To Connect...');
 	} else {
 		console.log('Connected...');
@@ -52,6 +55,26 @@ initDb((error, client) => {
 			console.log('Development');
 			httpServer = app.listen(1502);
 		}
+
+		// AGENDA
+		// TIME INTERVAL JOBS
+		const Agenda = require('agenda');
+		const agenda = new Agenda({ mongo: client.db('chatsApp'), db: { collection: 'users' } });
+
+		agenda.define('cleanProfileViewers', async (job, done) => {
+			await User.updateUsersWithACondition({}, { $set: { profileViewers: [] } });
+
+			done();
+		});
+
+		agenda.on('ready', async () => {
+			// IIFE to give access to async/await
+			await agenda.start();
+			await agenda.every('24 hours', 'cleanProfileViewers');
+
+			console.log('working!!!');
+		});
+
 		const io = initIo(httpServer);
 		// listening to our only namespace => '/'
 		// 1- emit,   2- socket.on   3- io.in(room).emit(),
@@ -74,6 +97,10 @@ initDb((error, client) => {
 
 			socket.on('privateMessage', data => {
 				usersSockets.sendPrivateMessage(socket, data.messageData, data.userToken);
+			});
+
+			socket.on('joinGroupRoom', data => {
+				usersSockets.joinGroupRoom(socket, data.groupId, data.userToken);
 			});
 		});
 	}

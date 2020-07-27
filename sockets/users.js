@@ -6,6 +6,7 @@ const ChatRoom = require('../models/chatRoom');
 const Message = require('../models/message');
 const socketIsAuth = require('../sockets/socketIsAuth');
 const socketHelpers = require('./socket-helpers');
+const Group = require('../models/group');
 
 exports.userOfline = async userToken => {
 	try {
@@ -18,14 +19,16 @@ exports.userOfline = async userToken => {
 };
 
 exports.onChats = async userToken => {
+	console.log('onChats');
+
 	try {
 		const userId = socketIsAuth(userToken);
 
 		const user = await User.getUser(userId);
 
 		const userChatRooms = user.chats; // [id, id, id]
-		console.log('userChatRooms', userChatRooms);
 
+		console.log('userChatRooms', userChatRooms);
 		// get only the chats that its chatHistory has some messages
 
 		if (userChatRooms.length < 1) {
@@ -40,7 +43,6 @@ exports.onChats = async userToken => {
 				}
 			},
 
-			{ $project: { chatHistory: { $slice: [ '$chatHistory', -1 ] }, userOne: 1, userTwo: 1 } },
 			{
 				$lookup: {
 					from: 'users',
@@ -67,13 +69,15 @@ exports.onChats = async userToken => {
 					'firstUser.friendRequests': 0,
 					'firstUser.password': 0,
 					'firstUser.chats': 0,
+					'firstUser.groups': 0,
 
 					'secondUser.friends': 0,
 					'secondUser.friendRequestsUsers': 0,
 					'secondUser.notifications': 0,
 					'secondUser.friendRequests': 0,
 					'secondUser.password': 0,
-					'secondUser.chats': 0
+					'secondUser.chats': 0,
+					'secondUser.groups': 0
 				}
 			}
 		]);
@@ -84,11 +88,36 @@ exports.onChats = async userToken => {
 
 			newChat.firstUser = { ...newChat.firstUser[0] };
 			newChat.secondUser = { ...newChat.secondUser[0] };
-			newChat.lastMessageDate = newChat.chatHistory[0].date;
-			return newChat;
+
+			const lastMessage = { ...newChat.chatHistory[newChat.chatHistory.length - 1] };
+			newChat.lastMessage = lastMessage;
+			newChat.lastMessageDate = lastMessage.date;
+
+			// check unreadMessages
+			let unreadMessages = 0;
+			for (let i = newChat.chatHistory.length - 1; i >= 0; i--) {
+				const message = newChat.chatHistory[i];
+
+				if (message.seen === false && message.from.toString() !== userId.toString()) {
+					unreadMessages++;
+				}
+			}
+
+			newChat.unreadMessages = unreadMessages;
+
+			let newChatForm = (({ _id, firstUser, secondUser, lastMessage, lastMessageDate, unreadMessages }) => ({
+				_id,
+				firstUser,
+				secondUser,
+				lastMessage,
+				lastMessageDate,
+				unreadMessages
+			}))(newChat);
+
+			return newChatForm;
 		});
 
-		const sortedUserChats = mappedUserChats.slice().sort((a, b) => b.lastMessageDate - a - lastMessageDate);
+		const sortedUserChats = mappedUserChats.slice().sort((a, b) => b.lastMessageDate - a.lastMessageDate);
 		getIo().emit('userChats', { userId: userId, userChats: sortedUserChats });
 	} catch (error) {
 		getIo().emit('userChats', { error: error.message });
@@ -106,7 +135,7 @@ exports.joinChatRoom = async (socket, chatRoomId, userToken) => {
 
 		socket.join(chatRoomId);
 
-		socketHelpers.userTwoIsActive(chatRoomId);
+		socketHelpers.increaseRoomMembers(chatRoomId, 'userTwoIsActive');
 
 		const chatRoom = await ChatRoom.getChatRoomAggregated([
 			{ $match: { _id: new ObjectId(chatRoomId) } },
@@ -231,4 +260,22 @@ exports.sendPrivateMessage = async (socket, messageData, userToken) => {
 	}
 
 	// emit the message back to the other user before it is store in the databse for fast performance
+};
+
+exports.joinGroupRoom = async (socket, groupRoomId, userToken) => {
+	const roomToLeave = Object.keys(socket.rooms)[1];
+
+	socket.leave(roomToLeave);
+
+	socket.join(groupRoomId);
+
+	socketHelpers.increaseRoomMembers(groupRoomId, 'aMemberJoinedAGroup');
+
+	try {
+		const group = await Group.getGroupAggregated([ { $match: { _id: new ObjectId(groupRoomId) } } ]);
+
+		getIo().emit('atGroupRoom', { group: group });
+	} catch (error) {
+		getIo().emit('atGroupRoom', { error: error.message });
+	}
 };

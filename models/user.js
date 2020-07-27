@@ -26,6 +26,7 @@ class User {
 		this.friends = [];
 		this.chats = [];
 		this.groups = [];
+		this.profileViewers = [];
 	}
 
 	addUser = () => {
@@ -76,8 +77,8 @@ class User {
 		return db().collection(collectionName).find(filterObj, { projection: { password: 0 } }).toArray();
 	};
 
-	static updateUserWithCondition = (filterObj, conditionObj) => {
-		return db().collection(collectionName).updateOne(filterObj, conditionObj);
+	static updateUserWithCondition = (conditionObj, updatingObj) => {
+		return db().collection(collectionName).updateOne(conditionObj, updatingObj);
 	};
 
 	static removeNotification = (userId, notifcationId) => {
@@ -90,6 +91,10 @@ class User {
 		return db()
 			.collection(collectionName)
 			.updateOne({ _id: new ObjectId(userId) }, { $pull: { friendRequests: { _id: { $eq: friendRequestId } } } });
+	};
+
+	static updateUsersWithACondition = (conditionObj, updatingObj) => {
+		return db().collection(collectionName).updateMany(conditionObj, updatingObj);
 	};
 }
 
