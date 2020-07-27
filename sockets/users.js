@@ -127,7 +127,7 @@ exports.onChats = async userToken => {
 exports.joinChatRoom = async (socket, chatRoomId, userToken) => {
 	const roomToLeave = Object.keys(socket.rooms)[1];
 	try {
-		socketIsAuth(userToken);
+		const userId = socketIsAuth(userToken);
 
 		console.log('exports.joinChatRoom -> socket.chatRoomId', chatRoomId);
 
@@ -224,7 +224,7 @@ exports.joinChatRoom = async (socket, chatRoomId, userToken) => {
 		newChatRoom.chatHistory = newChatHistory;
 
 		// if (chatRoom.chatHisory.length < 1) return getIo().emit('chatRoomIsJoined', { chatRoom: [] });
-		getIo().emit('chatRoomIsJoined', { chatRoom: newChatRoom });
+		getIo().emit('chatRoomIsJoined', { chatRoom: newChatRoom, to: userId });
 	} catch (error) {
 		getIo().emit('chatRoomIsJoined', { error: error.message });
 	}
@@ -263,18 +263,19 @@ exports.sendPrivateMessage = async (socket, messageData, userToken) => {
 };
 
 exports.joinGroupRoom = async (socket, groupRoomId, userToken) => {
-	const roomToLeave = Object.keys(socket.rooms)[1];
-
-	socket.leave(roomToLeave);
-
-	socket.join(groupRoomId);
-
-	socketHelpers.increaseRoomMembers(groupRoomId, 'aMemberJoinedAGroup');
-
 	try {
+		const userId = socketIsAuth(userToken);
+		const roomToLeave = Object.keys(socket.rooms)[1];
+
+		socket.leave(roomToLeave);
+
+		socket.join(groupRoomId);
+
+		socketHelpers.increaseRoomMembers(groupRoomId, 'aMemberJoinedAGroup');
+
 		const group = await Group.getGroupAggregated([ { $match: { _id: new ObjectId(groupRoomId) } } ]);
 
-		getIo().emit('atGroupRoom', { group: group });
+		getIo().emit('atGroupRoom', { group: group, to: userId });
 	} catch (error) {
 		getIo().emit('atGroupRoom', { error: error.message });
 	}
