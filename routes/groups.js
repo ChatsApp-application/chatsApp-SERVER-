@@ -6,7 +6,7 @@ const { body } = require('express-validator');
 const groupsControllers = require('../controllers/groups');
 const checkValidation = require('../middlewares/checkValidation');
 const isAuth = require('../middlewares/isAuth');
-
+const multerUploader = require('../middlewares/multerUpload');
 // POST @ /groups/createGroup
 router.post('/createGroup', isAuth, [ body('groupName').notEmpty() ], checkValidation, groupsControllers.createGroup);
 
@@ -21,5 +21,10 @@ router.delete('/removeGroup', isAuth, groupsControllers.removeGroup);
 
 // GET @ /groups/userGroups
 router.get('/userGroups', isAuth, groupsControllers.getUserGroups);
+
+// GET @ /groups/friendsForGroup/:groupId
+router.get('/friendsForGroup/:groupId', isAuth, groupsControllers.friendsForGroups);
+
+router.patch('/editGroup', isAuth, multerUploader.single('image'), groupsControllers.editGroup);
 
 module.exports = router;

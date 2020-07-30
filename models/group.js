@@ -9,6 +9,7 @@ class Group {
 		this.chatHistory = [];
 		this.members = [];
 		this.createdAt = new Date();
+		this.img = null;
 	}
 
 	createGroup = () => {

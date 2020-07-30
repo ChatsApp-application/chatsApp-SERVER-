@@ -3,6 +3,8 @@ const Group = require('../models/group');
 const User = require('../models/user');
 const sendError = require('../helpers/sendError');
 const getIo = require('../helpers/socket').getIo;
+const cloudinary = require('../helpers/cloudinary');
+const fs = require('fs');
 
 exports.createGroup = async (req, res, next) => {
 	const userId = req.userId;
@@ -30,6 +32,55 @@ exports.createGroup = async (req, res, next) => {
 		]);
 
 		res.status(200).json({ message: 'Group created successfully' });
+	} catch (error) {
+		if (!error.statusCode) error.statusCode = 500;
+		next(error);
+	}
+};
+
+exports.editGroup = async (req, res, next) => {
+	const { groupId, newName, imagePublicId } = req.body;
+	console.log('exports.editGroup -> imagePublicId', imagePublicId);
+	console.log('exports.editGroup -> newName', newName);
+	console.log('exports.editGroup -> groupId', groupId);
+	const { file, userId } = req;
+
+	try {
+		const group = await Group.getGroupById(groupId);
+
+		if (group.admin.toString() !== userId.toString()) sendError('User is not group admin', 403);
+
+		const updatedProps = {};
+
+		if (file) {
+			// the user uploaded a file to the group
+
+			if (group.img) {
+				// the group has a file
+				await cloudinary.cloudinaryRemoval(imagePublicId);
+			}
+
+			// the group does not have a file
+
+			const imagePath = req.file.path.replace('\\', '/');
+
+			const { secure_url, public_id } = await cloudinary.cloudinaryUploader(imagePath, 'chatsApp');
+
+			const publicIdToBeSent = public_id.split('/')[1];
+
+			const imgObj = { url: secure_url, publicId: publicIdToBeSent };
+
+			updatedProps.img = imgObj;
+
+			fs.unlink(imagePath, err => {
+				if (err) throw err;
+			});
+		}
+
+		updatedProps.name = newName;
+
+		await Group.updateGroupWithCondition({ _id: new ObjectId(groupId) }, { $set: updatedProps });
+		res.status(200).json({ message: 'Group updated successfully', groupId: groupId, newProps: updatedProps });
 	} catch (error) {
 		if (!error.statusCode) error.statusCode = 500;
 		next(error);
@@ -150,6 +201,53 @@ exports.getUserGroups = async (req, res, next) => {
 	} catch (error) {
 		if (!error.statusCode) error.statusCode = 500;
 
+		next(error);
+	}
+};
+
+exports.friendsForGroups = async (req, res, next) => {
+	const { userId } = req; // admin
+
+	const { groupId } = req.params;
+
+	try {
+		const group = await Group.getGroupById(groupId);
+
+		if (group.admin.toString() !== userId.toString()) sendError('User is not admin`s group', 403);
+
+		const user = await User.getUserAggregated([
+			{ $match: { _id: new ObjectId(userId) } },
+			{ $lookup: { from: 'users', localField: 'friends', foreignField: '_id', as: 'userFriends' } },
+			{
+				$project: {
+					userFriends: 1
+				}
+			}
+		]);
+
+		const userFriends = user.userFriends;
+
+		if (userFriends.length < 0) return res.status(200).json({ friendsToAdd: [] });
+
+		const friendsToAdd = [];
+
+		for (let friend of userFriends) {
+			if (!group.members.includes(new ObjectId(friend._id))) {
+				let newFriend = (({ _id, firstName, lastName, online, img }) => ({
+					_id,
+					firstName,
+					lastName,
+					online,
+					img
+				}))(friend);
+
+				friendsToAdd.push(newFriend);
+			}
+		}
+
+		res.status(200).json({ friendsToAdd: friendsToAdd });
+	} catch (error) {
+		if (!error.statusCode) error.statusCode = 500;
 		next(error);
 	}
 };

@@ -17,7 +17,7 @@ router.patch(
 		body('country', 'Country must not be empty, only in characters').trim().isAlpha(),
 		body('age', 'Age must be in numbers').trim().isNumeric(),
 		body('gender', 'Gender must not be empty').trim().notEmpty(),
-		body('bio', 'Your bio can not excced 20 characters').trim().isLength({ max: 20 })
+		body('bio', 'Your bio can not exceed 50 characters').trim().isLength({ max: 50 })
 	],
 	checkValidation,
 	isAuth,

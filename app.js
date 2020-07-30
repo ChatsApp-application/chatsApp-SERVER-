@@ -1,18 +1,15 @@
 const express = require('express');
-const path = require('path');
 const initDb = require('./helpers/db').initDb;
 const initIo = require('./helpers/socket').initIo;
 const app = express();
 const bodyParser = require('body-parser');
 const helmet = require('helmet');
-// const multer = require('multer');
 
 const authRoutes = require('./routes/auth');
 const usersRoutes = require('./routes/users');
 const groupRoutes = require('./routes/groups');
 const usersSockets = require('./sockets/users');
 const User = require('./models/user');
-const { ObjectId } = require('mongodb');
 // allow CORS
 app.use((req, res, next) => {
 	res.setHeader('Access-Control-Allow-Origin', '*');
@@ -83,6 +80,11 @@ initDb((error, client) => {
 			// userOfline
 			socket.on('userOfline', data => {
 				usersSockets.userOfline(data.userToken);
+			});
+
+			socket.on('leaveRoomOrGroup', data => {
+				const { roomId } = data;
+				socket.leave(roomId);
 			});
 
 			// when the user request his chats

@@ -1,6 +1,4 @@
 exports.findMutualFriends = (userX, userY) => {
-	console.log('exports.findMutualFriends -> userY', userY);
-	console.log('exports.findMutualFriends -> userX', userX);
 	// BIG O N
 	// this function will receive userX and userY
 	// userX  will have the aggregated userFriends
@@ -15,10 +13,19 @@ exports.findMutualFriends = (userX, userY) => {
 		}
 
 		for (let xFriend of userX.userFriends) {
-			if (yFriendsObj.hasOwnProperty(`${xFriend._id}`)) mutualFriends.push(xFriend);
+			if (yFriendsObj.hasOwnProperty(`${xFriend._id}`)) {
+				let newMutualFriend = (({ _id, firstName, lastName, online, img }) => ({
+					_id,
+					firstName,
+					lastName,
+					online,
+					img
+				}))(xFriend);
+
+				mutualFriends.push(newMutualFriend);
+			}
 		}
 	}
-	console.log('exports.findMutualFriends -> mutualFriends', mutualFriends);
 
 	return mutualFriends;
 };

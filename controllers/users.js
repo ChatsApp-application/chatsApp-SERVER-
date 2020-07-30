@@ -368,7 +368,6 @@ exports.visitProfile = async (req, res, next) => {
 					email: 0,
 					notifications: 0,
 					friendRequests: 0,
-					chats: 0,
 					groups: 0,
 					friendRequestsUsers: 0
 				}
@@ -431,6 +430,16 @@ exports.visitProfile = async (req, res, next) => {
 				to: userId
 			});
 		}
+
+		if (relation !== 'isOwner') {
+			for (let userChatRoom of user.chats) {
+				for (let userWhoWatchedChatRoom of userWhoWatched.chats) {
+					if (userChatRoom.toString() === userWhoWatchedChatRoom.toString()) {
+						user.sharedChatRoom = userChatRoom;
+					}
+				}
+			}
+		}
 		res.status(200).json({ user: user });
 	} catch (error) {
 		if (!error.statusCode) error.statusCode = 500;
@@ -451,17 +460,17 @@ exports.getFriends = async (req, res, next) => {
 			{
 				$project: {
 					friends: 0,
+					profileViewers: 0,
 					'userFriends.password': 0,
 					'userFriends.email': 0,
 					'userFriends.notifications': 0,
 					'userFriends.friendRequests': 0,
 					'userFriends.friendRequestsUsers': 0,
-					'userFriends.chats': 0,
-					'userFriends.groups': 0
+					'userFriends.groups': 0,
+					'userFriends.profileViewers': 0
 				}
 			}
 		]);
-		console.log('exports.getFriends -> user', user);
 
 		let userFriends = user.userFriends; // [{}, {}]
 
@@ -469,9 +478,26 @@ exports.getFriends = async (req, res, next) => {
 
 		if (userFriends.length > 0) {
 			userFriends = userFriends.map(userFriend => {
+				let sharedChatRoom = null;
+				for (let friendChatRoom of userFriend.chats) {
+					for (let userChatRoom of user.chats) {
+						if (friendChatRoom.toString() === userChatRoom.toString()) sharedChatRoom = userChatRoom;
+					}
+				}
 				const matualFriends = findMutualFriends(user, userFriend);
-				return { ...userFriend, matualFriends };
+
+				let newUserFriend = (({ _id, firstName, lastName, online, img }) => ({
+					_id,
+					firstName,
+					lastName,
+					online,
+					img
+				}))(userFriend);
+
+				return { ...newUserFriend, matualFriends, sharedChatRoom: sharedChatRoom };
 			});
+
+			return res.status(200).json({ friends: userFriends });
 		}
 
 		res.status(200).json({ friends: userFriends });
@@ -866,12 +892,14 @@ exports.editPP = async (req, res, next) => {
 	const { publicId } = req.params;
 	console.log('exports.editPP -> publicId', publicId);
 
+	if (!publicId) sendError('pass the fuckin image publicId !!!', 422);
+
 	// new img
 
 	try {
 		const imageFile = req.file;
 		console.log('exports.editPP -> imgFile', imageFile);
-		if (!imageFile) sendError('The User didn`t path the new file', 422);
+		if (!imageFile) sendError('The User didn`t pass the new file', 422);
 
 		const imagePath = imageFile.path.replace('\\', '/');
 		console.log('exports.editPP -> imagePath', imagePath);
