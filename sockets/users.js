@@ -128,6 +128,7 @@ exports.joinChatRoom = async (socket, chatRoomId, userToken) => {
 	const roomToLeave = Object.keys(socket.rooms)[1];
 	try {
 		const userId = socketIsAuth(userToken);
+		console.log('exports.joinChatRoom -> userId', userId);
 
 		console.log('exports.joinChatRoom -> socket.chatRoomId', chatRoomId);
 
@@ -137,61 +138,110 @@ exports.joinChatRoom = async (socket, chatRoomId, userToken) => {
 
 		socketHelpers.increaseRoomMembers(chatRoomId, 'userTwoIsActive');
 
-		const chatRoom = await ChatRoom.getChatRoomAggregated([
-			{ $match: { _id: new ObjectId(chatRoomId) } },
+		const tempChatRoom = await ChatRoom.getChatRoomAggregated([ { $match: { _id: new ObjectId(chatRoomId) } } ]);
+		console.log('exports.joinChatRoom -> tempChatRoom', tempChatRoom);
 
-			{
-				$lookup: {
-					from: 'users',
-					localField: 'userOne',
-					foreignField: '_id',
-					as: 'firstUser'
+		let chatRoom;
+
+		if (tempChatRoom.chatHistory.length > 0) {
+			chatRoom = await ChatRoom.getChatRoomAggregated([
+				{ $match: { _id: new ObjectId(chatRoomId) } },
+
+				{
+					$lookup: {
+						from: 'users',
+						localField: 'userOne',
+						foreignField: '_id',
+						as: 'firstUser'
+					}
+				},
+				{
+					$lookup: {
+						from: 'users',
+						localField: 'userTwo',
+						foreignField: '_id',
+						as: 'secondUser'
+					}
+				},
+
+				{ $unwind: '$chatHistory' },
+				{
+					$lookup: {
+						from: 'users',
+						foreignField: '_id',
+						localField: 'chatHistory.from',
+						as: 'chatHistory.fromUser'
+					}
+				},
+				{ $unwind: '$chatHistory.from' },
+				{ $group: { _id: '$_id', root: { $mergeObjects: '$$ROOT' }, chatHistory: { $push: '$chatHistory' } } },
+				{ $replaceRoot: { newRoot: { $mergeObjects: [ '$root', '$$ROOT' ] } } },
+
+				{ $project: { root: 0 } },
+
+				{
+					$project: {
+						userOne: 0,
+						userTwo: 0,
+						// firstUser
+						'firstUser.friends': 0,
+						'firstUser.friendRequestsUsers': 0,
+						'firstUser.notifications': 0,
+						'firstUser.friendRequests': 0,
+						'firstUser.password': 0,
+
+						// secondUser
+						'secondUser.friends': 0,
+						'secondUser.friendRequestsUsers': 0,
+						'secondUser.notifications': 0,
+						'secondUser.friendRequests': 0,
+						'secondUser.password': 0
+					}
 				}
-			},
-			{
-				$lookup: {
-					from: 'users',
-					localField: 'userTwo',
-					foreignField: '_id',
-					as: 'secondUser'
+			]);
+		} else {
+			chatRoom = await ChatRoom.getChatRoomAggregated([
+				{ $match: { _id: new ObjectId(chatRoomId) } },
+
+				{
+					$lookup: {
+						from: 'users',
+						localField: 'userOne',
+						foreignField: '_id',
+						as: 'firstUser'
+					}
+				},
+				{
+					$lookup: {
+						from: 'users',
+						localField: 'userTwo',
+						foreignField: '_id',
+						as: 'secondUser'
+					}
+				},
+				{
+					$project: {
+						userOne: 0,
+						userTwo: 0,
+						// firstUser
+						'firstUser.friends': 0,
+						'firstUser.friendRequestsUsers': 0,
+						'firstUser.notifications': 0,
+						'firstUser.friendRequests': 0,
+						'firstUser.password': 0,
+
+						// secondUser
+						'secondUser.friends': 0,
+						'secondUser.friendRequestsUsers': 0,
+						'secondUser.notifications': 0,
+						'secondUser.friendRequests': 0,
+						'secondUser.password': 0
+					}
 				}
-			},
-			{ $unwind: '$chatHistory' },
-			{
-				$lookup: {
-					from: 'users',
-					foreignField: '_id',
-					localField: 'chatHistory.from',
-					as: 'chatHistory.fromUser'
-				}
-			},
+			]);
+		}
 
-			{ $unwind: '$chatHistory.from' },
-			{ $group: { _id: '$_id', root: { $mergeObjects: '$$ROOT' }, chatHistory: { $push: '$chatHistory' } } },
-			{ $replaceRoot: { newRoot: { $mergeObjects: [ '$root', '$$ROOT' ] } } },
-
-			{ $project: { root: 0 } },
-
-			{
-				$project: {
-					userOne: 0,
-					userTwo: 0,
-					// firstUser
-					'firstUser.friends': 0,
-					'firstUser.friendRequestsUsers': 0,
-					'firstUser.notifications': 0,
-					'firstUser.friendRequests': 0,
-					'firstUser.password': 0,
-
-					// secondUser
-					'secondUser.friends': 0,
-					'secondUser.friendRequestsUsers': 0,
-					'secondUser.notifications': 0,
-					'secondUser.friendRequests': 0,
-					'secondUser.password': 0
-				}
-			}
-		]);
+		console.log('exports.joinChatRoom -> chatRoom', chatRoom);
 
 		// tweek our chatRoom a little bit
 		const newChatRoom = { ...chatRoom };
