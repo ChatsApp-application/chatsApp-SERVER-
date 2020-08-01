@@ -353,7 +353,6 @@ exports.findPeople = async (req, res, next) => {
 	}
 };
 
-// socket handled (editing is required for user X has viewd your profile feature)
 exports.visitProfile = async (req, res, next) => {
 	const whoWatchedId = req.userId; // the user who watched
 	const { userId } = req.params; // the user to get his data
@@ -396,7 +395,7 @@ exports.visitProfile = async (req, res, next) => {
 
 		// make a notification and send it to user (the user we are watching him) to inform him that somebody saw his profile but make sure to prevent this if the relation === isOwner
 
-		if (relation !== 'isOwner' && !user.profileViewers.includes(userWhoWatched.toString())) {
+		if (relation !== 'isOwner' && !user.profileViewers.includes(userWhoWatched._id.toString())) {
 			const notification = new Notification(
 				new ObjectId(whoWatchedId),
 				new ObjectId(userId),
@@ -411,7 +410,7 @@ exports.visitProfile = async (req, res, next) => {
 			// add the user who watched in the user.profileViewrs which will get cleaned every 24h
 			await User.updateUserWithCondition(
 				{ _id: new ObjectId(userId) },
-				{ $addToSet: { profileViewers: userWhoWatched.toString() } }
+				{ $addToSet: { profileViewers: userWhoWatched._id.toString() } }
 			);
 
 			getIo().emit('informingNotification', {

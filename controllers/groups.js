@@ -251,3 +251,55 @@ exports.friendsForGroups = async (req, res, next) => {
 		next(error);
 	}
 };
+
+exports.leaveGroup = async (req, res, next) => {
+	const { userId } = req;
+	const { groupId } = req.params;
+
+	try {
+		const user = await User.getUser(userId);
+		if (!user) sendError('User with given id is not found', 404);
+
+		const group = await Group.getGroupById(groupId);
+
+		if (group.admin.toString() === userId.toString()) sendError('Group Admin can`t leave the group', 403);
+
+		await Promise.all([
+			Group.updateGroupWithCondition(
+				{ _id: new ObjectId(groupId) },
+				{ $pull: { members: new ObjectId(userId) } }
+			),
+			User.updateUserWithCondition({ _id: new ObjectId(userId) }, { $pull: { groups: new ObjectId(groupId) } })
+		]);
+
+		res.status(200).json({ message: 'Group quited sucessfully', groupId: groupId, userId: userId });
+	} catch (error) {
+		if (!error.statusCode) error.statusCode = 500;
+		next(error);
+	}
+};
+
+exports.deleteGroup = async (req, res, next) => {
+	const { groupId } = req.params;
+	const { userId } = req;
+
+	try {
+		const user = await User.getUser(userId);
+
+		if (!user) sendError('user with given id was not found', 404);
+		const group = await Group.getGroupById(groupId);
+
+		if (group.admin.toString() !== userId.toString()) sendError('User is not group admin', 403);
+
+		await Promise.all([
+			Group.deleteGroup(groupId),
+			User.updateUserWithCondition({ _id: new ObjectId(userId) }, { $pull: { groups: new ObjectId(groupId) } })
+		]);
+
+		res.status(200).json({ message: 'Group delete successfully', groupId: groupId });
+	} catch (error) {
+		if (!error.statusCode) error.statusCode = 500;
+
+		next(error);
+	}
+};

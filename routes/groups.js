@@ -27,4 +27,8 @@ router.get('/friendsForGroup/:groupId', isAuth, groupsControllers.friendsForGrou
 
 router.patch('/editGroup', isAuth, multerUploader.single('image'), groupsControllers.editGroup);
 
+router.delete('/deleteGroup/:groupId', isAuth, groupsControllers.deleteGroup);
+
+router.patch('/leaveGroup/:groupId', isAuth, groupsControllers.leaveGroup);
+
 module.exports = router;
