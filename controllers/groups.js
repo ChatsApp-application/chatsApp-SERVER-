@@ -114,7 +114,7 @@ exports.addMembersToGroup = async (req, res, next) => {
 
 		getIo().emit('userAddedToGroup', { addedUsers: usersSet, group: groupId });
 
-		res.status(200).json({ message: `User ${userToAdd} added succesfully`, addedUserId: userToAdd });
+		res.status(200).json({ message: `Users added succesfully`, users: usersSet });
 	} catch (error) {
 		if (!error.statusCode) error.statusCode = 500;
 		next(error);
@@ -230,12 +230,13 @@ exports.friendsForGroups = async (req, res, next) => {
 
 		const userFriends = user.userFriends;
 
-		if (userFriends.length < 0) return res.status(200).json({ friendsToAdd: [] });
+		if (userFriends.length === 0) return res.status(200).json({ friendsToAdd: [] });
 
 		const friendsToAdd = [];
 
+		const stringifiedMembers = group.members.map(member => member.toString());
 		for (let friend of userFriends) {
-			if (!group.members.includes(new ObjectId(friend._id))) {
+			if (!stringifiedMembers.includes(friend._id.toString())) {
 				let newFriend = (({ _id, firstName, lastName, online, img }) => ({
 					_id,
 					firstName,
