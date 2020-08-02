@@ -87,29 +87,32 @@ exports.editGroup = async (req, res, next) => {
 	}
 };
 
-exports.addMemberToGroup = async (req, res, next) => {
+exports.addMembersToGroup = async (req, res, next) => {
 	const userId = req.userId;
 
-	const { groupId, userToAdd } = req.body;
+	const { groupId, usersSet } = req.body;
 
 	try {
 		const group = await Group.getGroupById(groupId);
 
-		if (!group) sendError('Group not founc', 404);
-
+		if (!group) sendError('Group not found', 404);
+		if (usersSet.length < 1) sendError('UsersSet is empty', 403);
 		if (group.admin.toString() !== userId.toString()) sendError('You are not Group Admin', 403);
 
-		await Group.updateGroupWithCondition(
-			{ _id: new ObjectId(groupId) },
-			{ $addToSet: { members: new ObjectId(userToAdd) } }
-		);
+		const usersObjectIds = usersSet.map(uId => new ObjectId(uId));
 
-		await User.updateUserWithCondition(
-			{ _id: new ObjectId(userToAdd) },
-			{ $addToSet: { groups: new ObjectId(groupId) } }
-		);
+		await Promise.all([
+			Group.updateGroupWithCondition(
+				{ _id: new ObjectId(groupId) },
+				{ $addToSet: { members: { $each: usersObjectIds } } }
+			),
+			User.updateUsersWithACondition(
+				{ _id: { $in: usersObjectIds } },
+				{ $addToSet: { groups: new ObjectId(groupId) } }
+			)
+		]);
 
-		getIo().emit('userAddedToGroup', userToAdd);
+		getIo().emit('userAddedToGroup', { addedUsers: usersSet, group: groupId });
 
 		res.status(200).json({ message: `User ${userToAdd} added succesfully`, addedUserId: userToAdd });
 	} catch (error) {
@@ -291,9 +294,14 @@ exports.deleteGroup = async (req, res, next) => {
 
 		if (group.admin.toString() !== userId.toString()) sendError('User is not group admin', 403);
 
+		const groupMembersIds = group.members; // at least one member which is the admin
+
 		await Promise.all([
 			Group.deleteGroup(groupId),
-			User.updateUserWithCondition({ _id: new ObjectId(userId) }, { $pull: { groups: new ObjectId(groupId) } })
+			User.updateUsersWithACondition(
+				{ _id: { $in: groupMembersIds } },
+				{ $pull: { groups: new ObjectId(groupId) } }
+			)
 		]);
 
 		res.status(200).json({ message: 'Group delete successfully', groupId: groupId });

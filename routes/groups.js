@@ -11,7 +11,7 @@ const multerUploader = require('../middlewares/multerUpload');
 router.post('/createGroup', isAuth, [ body('groupName').notEmpty() ], checkValidation, groupsControllers.createGroup);
 
 // PATCH @ /groups/addMember
-router.patch('/addMember', isAuth, groupsControllers.addMemberToGroup);
+router.patch('/addMember', isAuth, groupsControllers.addMembersToGroup);
 
 // PATCH @ /groups/kickMember
 router.patch('/kickMember', isAuth, groupsControllers.kickMember);

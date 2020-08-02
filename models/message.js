@@ -16,7 +16,7 @@ class Message {
 	addMessage = async roomId => {
 		return await db()
 			.collection(collectionName)
-			.updateOne({ _id: new ObjectId(roomId) }, { $addToSet: { chatHistory: this } });
+			.updateOne({ _id: new ObjectId(roomId) }, { $addToSet: { chatHistory: this } }); // returns a promise
 	};
 }
 

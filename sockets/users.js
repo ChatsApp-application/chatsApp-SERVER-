@@ -7,7 +7,7 @@ const Message = require('../models/message');
 const socketIsAuth = require('../sockets/socketIsAuth');
 const socketHelpers = require('./socket-helpers');
 const Group = require('../models/group');
-
+const GroupMessage = require('../models/groupMesasage');
 exports.userOfline = async userToken => {
 	try {
 		const userId = socketIsAuth(userToken);
@@ -315,6 +315,7 @@ exports.sendPrivateMessage = async (socket, messageData, userToken) => {
 	// emit the message back to the other user before it is store in the databse for fast performance
 };
 
+// needs some aggregation
 exports.joinGroupRoom = async (socket, groupRoomId, userToken) => {
 	try {
 		const userId = socketIsAuth(userToken);
@@ -331,5 +332,35 @@ exports.joinGroupRoom = async (socket, groupRoomId, userToken) => {
 		getIo().emit('atGroupRoom', { group: group, to: userId });
 	} catch (error) {
 		getIo().emit('atGroupRoom', { error: error.message });
+	}
+};
+
+exports.sendGroupMessage = async (socket, messageData, userToken) => {
+	const { firstName, lastName, message } = messageData;
+	const clientGroupRoom = Object.keys(socket.rooms)[1];
+
+	try {
+		const from = socketIsAuth(userToken);
+
+		const groupMessage = new GroupMessage(from, message);
+
+		const quickMessageForGroup = {
+			_id: groupMessage._id,
+			date: groupMessage.date,
+
+			fromUser: {
+				_id: from,
+				firstName: firstName,
+				lastName: lastName
+			},
+
+			message: message
+		};
+
+		getIo().in(clientGroupRoom).emit('groupMessage', quickMessageForGroup);
+
+		await groupMessage.addMessasge(clientGroupRoom);
+	} catch (error) {
+		getIo().emit('groupMessage', { error: error.message });
 	}
 };
