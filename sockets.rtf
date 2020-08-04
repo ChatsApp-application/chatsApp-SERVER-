@@ -1,0 +1,26 @@
+1- JOINING A GROUP
+socket.emit('joinGroupRoom', {groupId, userToken})
+socket.on('atGroupRoom', data => {
+  console.log(data.group, data.to);
+})
+
+2- SEND A MESSAGE IN A GORUP
+socket.emit('sendGroupMessage', {messageData: {firstName, lastName, message}, userToken})
+
+socket.on('groupMessage', data => {
+  console.log(virtualMessage)
+  /* {
+			_id: groupMessage._id,
+			date: groupMessage.date,
+
+			fromUser: {
+				_id: from,
+				firstName: firstName,
+				lastName: lastName
+			},
+
+			message: message
+		}
+*/
+
+})

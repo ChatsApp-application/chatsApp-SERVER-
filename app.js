@@ -102,6 +102,10 @@ initDb((error, client) => {
 			socket.on('joinGroupRoom', data => {
 				usersSockets.joinGroupRoom(socket, data.groupId, data.userToken);
 			});
+
+			socket.on('sendGroupMessage', data => {
+				usersSockets.sendGroupMessage(socket, data.messageData, data.userToken);
+			});
 		});
 	}
 });

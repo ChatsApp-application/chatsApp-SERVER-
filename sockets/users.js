@@ -126,8 +126,11 @@ exports.onChats = async userToken => {
 
 exports.joinChatRoom = async (socket, chatRoomId, userToken) => {
 	const roomToLeave = Object.keys(socket.rooms)[1];
+	let userIdCopy;
 	try {
 		const userId = socketIsAuth(userToken);
+		userIdCopy = userId;
+
 		console.log('exports.joinChatRoom -> userId', userId);
 
 		console.log('exports.joinChatRoom -> socket.chatRoomId', chatRoomId);
@@ -141,6 +144,7 @@ exports.joinChatRoom = async (socket, chatRoomId, userToken) => {
 		const tempChatRoom = await ChatRoom.getChatRoomAggregated([ { $match: { _id: new ObjectId(chatRoomId) } } ]);
 		console.log('exports.joinChatRoom -> tempChatRoom', tempChatRoom);
 
+		if (!tempChatRoom) throw new Error('chat room is not found');
 		let chatRoom;
 
 		if (tempChatRoom.chatHistory.length > 0) {
@@ -276,7 +280,7 @@ exports.joinChatRoom = async (socket, chatRoomId, userToken) => {
 		// if (chatRoom.chatHisory.length < 1) return getIo().emit('chatRoomIsJoined', { chatRoom: [] });
 		getIo().emit('chatRoomIsJoined', { chatRoom: newChatRoom, to: userId });
 	} catch (error) {
-		getIo().emit('chatRoomIsJoined', { error: error.message });
+		getIo().emit('chatRoomIsJoined', { error: error.message, to: userIdCopy });
 	}
 };
 
@@ -317,21 +321,51 @@ exports.sendPrivateMessage = async (socket, messageData, userToken) => {
 
 // needs some aggregation
 exports.joinGroupRoom = async (socket, groupRoomId, userToken) => {
+	let userIdCopy;
 	try {
 		const userId = socketIsAuth(userToken);
+		userIdCopy = userId;
 		const roomToLeave = Object.keys(socket.rooms)[1];
 
+		const group = await Group.getGroupAggregated([
+			{ $match: { _id: new ObjectId(groupRoomId) } },
+			{ $lookup: { from: 'users', localField: 'members', foreignField: '_id', as: 'groupMembers' } },
+			{
+				$project: {
+					members: 0
+				}
+			}
+		]);
+
+		console.log('exports.joinGroupRoom -> group', group);
+		if (!group) throw new Error('Group is not found');
 		socket.leave(roomToLeave);
 
 		socket.join(groupRoomId);
 
 		socketHelpers.increaseRoomMembers(groupRoomId, 'aMemberJoinedAGroup');
 
-		const group = await Group.getGroupAggregated([ { $match: { _id: new ObjectId(groupRoomId) } } ]);
+		if (group.groupMembers.length > 0) {
+			let newMembers = group.groupMembers.map(mem => {
+				let newMember = (({ _id, firstName, lastName, online, img }) => ({
+					_id,
+					firstName,
+					lastName,
+					online,
+					img
+				}))(mem);
+
+				return newMember;
+			});
+
+			group.groupMembers = newMembers;
+		}
+
+		console.log('exports.joinGroupRoom -> group', group);
 
 		getIo().emit('atGroupRoom', { group: group, to: userId });
 	} catch (error) {
-		getIo().emit('atGroupRoom', { error: error.message });
+		getIo().emit('atGroupRoom', { error: error.message, to: userIdCopy });
 	}
 };
 
@@ -339,12 +373,17 @@ exports.sendGroupMessage = async (socket, messageData, userToken) => {
 	const { firstName, lastName, message } = messageData;
 	const clientGroupRoom = Object.keys(socket.rooms)[1];
 
+	let userIdCopy;
 	try {
 		const from = socketIsAuth(userToken);
 
+		userIdCopy = from;
+
+		if (!from) throw new Error('user is not found');
+
 		const groupMessage = new GroupMessage(from, message);
 
-		const quickMessageForGroup = {
+		const virtualMessage = {
 			_id: groupMessage._id,
 			date: groupMessage.date,
 
@@ -357,10 +396,10 @@ exports.sendGroupMessage = async (socket, messageData, userToken) => {
 			message: message
 		};
 
-		getIo().in(clientGroupRoom).emit('groupMessage', quickMessageForGroup);
+		getIo().in(clientGroupRoom).emit('groupMessage', virtualMessage);
 
 		await groupMessage.addMessasge(clientGroupRoom);
 	} catch (error) {
-		getIo().emit('groupMessage', { error: error.message });
+		getIo().emit('groupMessage', { error: error.message, to: userIdCopy });
 	}
 };
