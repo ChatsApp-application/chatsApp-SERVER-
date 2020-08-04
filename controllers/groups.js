@@ -131,7 +131,7 @@ exports.kickMember = async (req, res, next) => {
 
 		if (group.admin.toString() !== userId.toString()) sendError('User is not group admin', 403);
 
-		if (group.admin.toString() === userId.toString()) sendError('The admin can`t kick himself', 403);
+		if (group.admin.toString() === userToKickId.toString()) sendError('The admin can`t kick himself', 403);
 
 		await Promise.all([
 			Group.updateGroupWithCondition(
@@ -149,7 +149,7 @@ exports.kickMember = async (req, res, next) => {
 
 		res
 			.status(200)
-			.json({ message: 'user has kicked from group sucessfuly', groupId: groupId, kickedUser: userToKickId });
+			.json({ message: 'user has kicked from group successfully', groupId: groupId, kickedUser: userToKickId });
 	} catch (error) {
 		if (!error.statusCode) error.statusCode = 500;
 		next(error);
