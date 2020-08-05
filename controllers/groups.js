@@ -101,7 +101,21 @@ exports.addMembersToGroup = async (req, res, next) => {
 
 		const usersObjectIds = usersSet.map(uId => new ObjectId(uId));
 
-		await Promise.all([
+		const addedUsersSet = await User.getUsersAggregated([ { $match: { _id: { $in: usersObjectIds } } } ]);
+
+		let newAddedUsers = addedUsersSet.map(user => {
+			let newUser = (({ _id, firstName, lastName, online, img }) => ({
+				_id,
+				firstName,
+				lastName,
+				online,
+				img
+			}))(user);
+
+			return newUser;
+		});
+
+		group.groupMembers = await Promise.all([
 			Group.updateGroupWithCondition(
 				{ _id: new ObjectId(groupId) },
 				{ $addToSet: { members: { $each: usersObjectIds } } }
@@ -112,7 +126,7 @@ exports.addMembersToGroup = async (req, res, next) => {
 			)
 		]);
 
-		getIo().emit('usersAddedToGroup', { addedUsers: usersSet, group: groupId });
+		getIo().emit('usersAddedToGroup', { addedUsers: newAddedUsers, group: groupId });
 
 		res.status(200).json({ message: `Users added succesfully`, users: usersSet });
 	} catch (error) {
