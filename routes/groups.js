@@ -16,9 +16,6 @@ router.patch('/addMember', isAuth, groupsControllers.addMembersToGroup);
 // PATCH @ /groups/kickMember
 router.patch('/kickMember', isAuth, groupsControllers.kickMember);
 
-// DELETE @ /groups/removeGroup
-router.delete('/removeGroup', isAuth, groupsControllers.removeGroup);
-
 // GET @ /groups/userGroups
 router.get('/userGroups', isAuth, groupsControllers.getUserGroups);
 
