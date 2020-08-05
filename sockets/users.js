@@ -400,7 +400,7 @@ exports.sendGroupMessage = async (socket, messageData, userToken) => {
 
 		const virtualMessage = {
 			_id: groupMessage._id,
-			date: groupMessage.date,
+			data: groupMessage.data,
 
 			fromUser: {
 				_id: from,
