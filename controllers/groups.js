@@ -112,7 +112,7 @@ exports.addMembersToGroup = async (req, res, next) => {
 			)
 		]);
 
-		getIo().emit('userAddedToGroup', { addedUsers: usersSet, group: groupId });
+		getIo().emit('usersAddedToGroup', { addedUsers: usersSet, group: groupId });
 
 		res.status(200).json({ message: `Users added succesfully`, users: usersSet });
 	} catch (error) {
@@ -150,33 +150,6 @@ exports.kickMember = async (req, res, next) => {
 		res
 			.status(200)
 			.json({ message: 'user has kicked from group successfully', groupId: groupId, kickedUser: userToKickId });
-	} catch (error) {
-		if (!error.statusCode) error.statusCode = 500;
-		next(error);
-	}
-};
-
-exports.removeGroup = async (req, res, next) => {
-	const userId = req.userId;
-	const { groupId } = req.body;
-
-	try {
-		const group = await Group.getGroupById(groupId);
-
-		if (group.admin.toString() !== userId.toString()) sendError('User is not group`s admin', 404);
-
-		const groupMembersIds = group.members; //
-
-		if (groupMembersIds.length > 0) {
-			await User.updateUsersWithACondition(
-				{ _id: { $in: groupMembersIds } },
-				{ $pull: { groups: new ObjectId(groupId) } }
-			);
-		}
-
-		await Group.deleteGroup(groupId), getIo().emit('groupRemoved', { memebrs: groupMembersIds });
-
-		res.status(200).json({ message: 'Grouped Removed successfully', groupId: groupId });
 	} catch (error) {
 		if (!error.statusCode) error.statusCode = 500;
 		next(error);
@@ -276,6 +249,8 @@ exports.leaveGroup = async (req, res, next) => {
 			User.updateUserWithCondition({ _id: new ObjectId(userId) }, { $pull: { groups: new ObjectId(groupId) } })
 		]);
 
+		getIo().emit('leaveGroup', { groupId: groupId, userId: userId });
+
 		res.status(200).json({ message: 'Group quited sucessfully', groupId: groupId, userId: userId });
 	} catch (error) {
 		if (!error.statusCode) error.statusCode = 500;
@@ -305,6 +280,7 @@ exports.deleteGroup = async (req, res, next) => {
 			)
 		]);
 
+		getIo().emit('groupIsDeleted', { groupId: groupId, gorupMembers: groupMembersIds });
 		res.status(200).json({ message: 'Group delete successfully', groupId: groupId });
 	} catch (error) {
 		if (!error.statusCode) error.statusCode = 500;
