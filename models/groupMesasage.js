@@ -7,7 +7,7 @@ const collectionName = 'groupRooms';
 class GroupMessage {
 	constructor(from, message) {
 		this._id = uuidv4();
-		this.from = from;
+		this.from = new ObjectId(from);
 		this.message = message;
 		this.data = new Date();
 	}

@@ -255,25 +255,7 @@ exports.joinChatRoom = async (socket, chatRoomId, userToken) => {
 
 		// do the same for chatHistory messages..
 
-		const newChatHistory = newChatRoom.chatHistory.map(message => {
-			let newMessage = { ...message };
-
-			// change the fromUser into an object
-			let fromUser = { ...newMessage.fromUser[0] };
-
-			// destructure our desired data
-			let newFromUser = (({ _id, firstName, lastName, online, img }) => ({
-				_id,
-				firstName,
-				lastName,
-				online,
-				img
-			}))(fromUser);
-
-			newMessage.fromUser = newFromUser;
-
-			return newMessage;
-		});
+		const newChatHistory = socketHelpers.newChatHistory(newChatRoom);
 
 		newChatRoom.chatHistory = newChatHistory;
 
@@ -324,12 +306,63 @@ exports.joinGroupRoom = async (socket, groupRoomId, userToken) => {
 	let userIdCopy;
 	try {
 		const userId = socketIsAuth(userToken);
+
 		userIdCopy = userId;
+
+		// basic aggregation
+		let group = await Group.getGroupAggregated([
+			{ $match: { _id: new ObjectId(groupRoomId) } },
+
+			{ $lookup: { from: 'users', localField: 'members', foreignField: '_id', as: 'groupMembers' } },
+
+			{
+				$project: {
+					members: 0
+				}
+			}
+		]);
+		if (!group) throw new Error('Group is not found');
+
 		const roomToLeave = Object.keys(socket.rooms)[1];
 
-		const group = await Group.getGroupAggregated([
+		console.log('exports.joinGroupRoom -> roomToLeave', roomToLeave);
+
+		socket.leave(roomToLeave);
+
+		socket.join(groupRoomId);
+
+		socketHelpers.increaseRoomMembers(groupRoomId, 'aMemberJoinedAGroup');
+
+		// prevent aggregate messages users if the chatHistory is empty to prevent errors
+		if (group.chatHistory.length === 0) {
+			if (group.groupMembers.length > 0) {
+				const newMembers = socketHelpers.projectGroupMembers(group);
+				group.groupMembers = newMembers;
+			}
+
+			return getIo().emit('atGroupRoom', { group: group, to: userId });
+		}
+
+		group = await Group.getGroupAggregated([
 			{ $match: { _id: new ObjectId(groupRoomId) } },
+
 			{ $lookup: { from: 'users', localField: 'members', foreignField: '_id', as: 'groupMembers' } },
+
+			{ $unwind: '$chatHistory' },
+			{
+				$lookup: {
+					from: 'users',
+					foreignField: '_id',
+					localField: 'chatHistory.from',
+					as: 'chatHistory.fromUser'
+				}
+			},
+			{ $unwind: '$chatHistory.from' },
+			{ $group: { _id: '$_id', root: { $mergeObjects: '$$ROOT' }, chatHistory: { $push: '$chatHistory' } } },
+			{ $replaceRoot: { newRoot: { $mergeObjects: [ '$root', '$$ROOT' ] } } },
+
+			{ $project: { root: 0 } },
+
 			{
 				$project: {
 					members: 0
@@ -337,31 +370,13 @@ exports.joinGroupRoom = async (socket, groupRoomId, userToken) => {
 			}
 		]);
 
-		console.log('exports.joinGroupRoom -> group', group);
-		if (!group) throw new Error('Group is not found');
-		socket.leave(roomToLeave);
-
-		socket.join(groupRoomId);
-
-		socketHelpers.increaseRoomMembers(groupRoomId, 'aMemberJoinedAGroup');
-
 		if (group.groupMembers.length > 0) {
-			let newMembers = group.groupMembers.map(mem => {
-				let newMember = (({ _id, firstName, lastName, online, img }) => ({
-					_id,
-					firstName,
-					lastName,
-					online,
-					img
-				}))(mem);
-
-				return newMember;
-			});
-
+			const newMembers = socketHelpers.projectGroupMembers(group);
 			group.groupMembers = newMembers;
 		}
 
-		console.log('exports.joinGroupRoom -> group', group);
+		const newChatHistory = socketHelpers.newChatHistory(group);
+		group.chatHistory = newChatHistory;
 
 		getIo().emit('atGroupRoom', { group: group, to: userId });
 	} catch (error) {
