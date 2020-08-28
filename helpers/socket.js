@@ -2,8 +2,8 @@ const socketIo = require('socket.io');
 
 let _io;
 exports.initIo = httpServer => {
-	const io = socketIo(httpServer);
-	_io = io;
+	_io = socketIo(httpServer);
+
 	return _io;
 };
 

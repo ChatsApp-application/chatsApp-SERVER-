@@ -7,7 +7,7 @@ const checkValidation = (req, res, next) => {
 	if (!errors.isEmpty()) {
 		const errorMessage = errors.array()[0].msg;
 
-		return sendError(errorMessage, 403);
+		return sendError(errorMessage, 422);
 	}
 
 	next();

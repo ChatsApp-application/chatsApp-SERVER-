@@ -11,8 +11,8 @@ const GroupMessage = require('../models/groupMesasage');
 exports.userOfline = async userToken => {
 	try {
 		const userId = socketIsAuth(userToken);
-		await User.updateUserWithCondition({ _id: new ObjectId(userId) }, { $set: { online: false } });
 		getIo().emit('userIsOfline', { userId: userId, error: null });
+		await User.updateUserWithCondition({ _id: new ObjectId(userId) }, { $set: { online: false } });
 	} catch (error) {
 		getIo().emit('userIsOfline', { userId: userId, error: error.message });
 	}
@@ -124,6 +124,7 @@ exports.onChats = async userToken => {
 	}
 };
 
+// seen is done
 exports.joinChatRoom = async (socket, chatRoomId, userToken) => {
 	const roomToLeave = Object.keys(socket.rooms)[1];
 	let userIdCopy;
@@ -259,7 +260,27 @@ exports.joinChatRoom = async (socket, chatRoomId, userToken) => {
 
 		newChatRoom.chatHistory = newChatHistory;
 
-		// if (chatRoom.chatHisory.length < 1) return getIo().emit('chatRoomIsJoined', { chatRoom: [] });
+		// set the undread messages from the other user to seen
+		let newUnreadMessages = [];
+		let newUnreadMessagesSender;
+		for (let message of newChatRoom.chatHistory) {
+			if (message.seen === false && message.fromUser._id !== userId) {
+				newUnreadMessages.push(message._id);
+
+				if (!newUnreadMessagesSender) newUnreadMessagesSender = message.fromUser._id;
+			}
+		}
+
+		if (newUnreadMessages.length > 0) {
+			getIo.emit('setUnseenMessagesToTrue', {
+				messages: newUnreadMessages,
+				room: chatRoomId,
+				to: newUnreadMessagesSender
+			});
+
+			await ChatRoom.updateChatWithCondition({ _id: { $in: newUnreadMessages } }, { $set: { seen: true } });
+		}
+
 		getIo().emit('chatRoomIsJoined', { chatRoom: newChatRoom, to: userId });
 	} catch (error) {
 		getIo().emit('chatRoomIsJoined', { error: error.message, to: userIdCopy });
@@ -288,17 +309,31 @@ exports.sendPrivateMessage = async (socket, messageData, userToken) => {
 			message: message
 		};
 
+		console.log('whoSentMessage =>>>', socket.id);
+
 		getIo().in(clientChatRoom).emit('privateMessageBack', quickMessageForOtherUser);
 
+		// send another event to handle the outside
 		getIo().emit('privateMessageBackFromOutside', to);
 
 		await newMessage.addMessage(clientChatRoom);
-		// send another event to handle the outside
 	} catch (error) {
 		getIo().emit('privateMessageBack', { error: error.message });
 	}
 
 	// emit the message back to the other user before it is store in the databse for fast performance
+};
+
+exports.messageSeen = async (socket, { messageId }) => {
+	try {
+		const clientChatRoom = Object.keys(socket.rooms)[1]; // the chatRoomId of the user
+
+		getIo().in(clientChatRoom).emit('seen', messageId);
+
+		await ChatRoom.updateChatWithCondition({ _id: messageId }, { $set: { seen: true } });
+	} catch (error) {
+		getIo().emit('seen', { error: error.message });
+	}
 };
 
 // needs some aggregation

@@ -47,6 +47,10 @@ class ChatRoom {
 
 		return db().collection(collectionName).deleteOne(sharedRoomQuery);
 	};
+
+	static updateChatWithCondition = (filterObj, conditionObj) => {
+		return db().collection(collectionName).updateOne(filterObj, conditionObj);
+	};
 }
 
 module.exports = ChatRoom;

@@ -64,7 +64,7 @@ exports.postSignin = async (req, res, next) => {
 		await User.updateUserWithCondition({ email: email }, { $set: { online: true } });
 
 		// emit an event to inform all users that this user is online
-		getIo().emit('userOnline', { userId: foundUser._id.toString() });
+		getIo().emit('userOnline', { userId: foundUser._id });
 		res.status(200).json({
 			message: `${foundUser.firstName} ${foundUser.lastName} has logged in successfully`,
 			token: token,

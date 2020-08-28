@@ -4,11 +4,12 @@ const jwt = require('jsonwebtoken');
 // const getIo = require('../helpers/socket').getIo;
 
 module.exports = socketIsAuth = userToken => {
-	if (!userToken) throw new Error('User Is not Authenticated...');
+	const errorMessage = 'User is not authenticated...';
+	if (!userToken) throw new Error(errorMessage);
 
 	const decodedToken = jwt.decode(userToken, `${process.env.TOKEN_SECRET}`);
 
-	if (!decodedToken) throw new Error('User is not Authenticated');
+	if (!decodedToken) throw new Error(errorMessage);
 
 	return decodedToken.userId;
 };

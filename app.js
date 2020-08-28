@@ -99,6 +99,19 @@ initDb((error, client) => {
 				usersSockets.sendPrivateMessage(socket, data.messageData, data.userToken);
 			});
 
+			socket.on('messageIsSeen', data => {
+				usersSockets.messageSeen(socket, data);
+			});
+
+			socket.on('typing', data => {
+				// data.typing <bool>
+				// the frontend will emit this with data.typing = true if the message.length > 0
+				// if the user cleared the message(message.length === 0), he will send data.typing = false
+
+				const userChatRoom = Object.keys(socket.rooms)[1];
+				io.in(userChatRoom).emit('isTyping', data.typing);
+			});
+
 			socket.on('joinGroupRoom', data => {
 				usersSockets.joinGroupRoom(socket, data.groupId, data.userToken);
 			});
