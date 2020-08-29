@@ -48,8 +48,12 @@ class ChatRoom {
 		return db().collection(collectionName).deleteOne(sharedRoomQuery);
 	};
 
-	static updateChatWithCondition = (filterObj, conditionObj) => {
-		return db().collection(collectionName).updateOne(filterObj, conditionObj);
+	static updateChatWithCondition = (filterObj, conditionObj, arrayFilterObj) => {
+		return db().collection(collectionName).updateOne(filterObj, conditionObj, arrayFilterObj);
+	};
+
+	static updateChatMessagesWithCondition = (filterObj, conditionObj) => {
+		return db().collection(collectionName).updateMany(filterObj, conditionObj);
 	};
 }
 

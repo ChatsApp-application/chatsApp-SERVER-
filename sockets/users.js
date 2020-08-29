@@ -130,11 +130,8 @@ exports.joinChatRoom = async (socket, chatRoomId, userToken) => {
 	let userIdCopy;
 	try {
 		const userId = socketIsAuth(userToken);
-		userIdCopy = userId;
-
 		console.log('exports.joinChatRoom -> userId', userId);
-
-		console.log('exports.joinChatRoom -> socket.chatRoomId', chatRoomId);
+		userIdCopy = userId;
 
 		socket.leave(roomToLeave);
 
@@ -246,8 +243,6 @@ exports.joinChatRoom = async (socket, chatRoomId, userToken) => {
 			]);
 		}
 
-		console.log('exports.joinChatRoom -> chatRoom', chatRoom);
-
 		// tweek our chatRoom a little bit
 		const newChatRoom = { ...chatRoom };
 
@@ -264,13 +259,15 @@ exports.joinChatRoom = async (socket, chatRoomId, userToken) => {
 		let newUnreadMessages = [];
 		let newUnreadMessagesSender;
 		for (let message of newChatRoom.chatHistory) {
-			if (message.seen === false && message.fromUser._id !== userId) {
+			console.log(message);
+			if (message.seen === false && message.fromUser._id.toString() !== userId.toString()) {
 				newUnreadMessages.push(message._id);
 
-				if (!newUnreadMessagesSender) newUnreadMessagesSender = message.fromUser._id;
+				if (!newUnreadMessagesSender) newUnreadMessagesSender = message.fromUser._id.toString();
 			}
 		}
 
+		console.log('exports.joinChatRoom -> newUnreadMessages', newUnreadMessages);
 		if (newUnreadMessages.length > 0) {
 			getIo().emit('setUnseenMessagesToTrue', {
 				messages: newUnreadMessages,
@@ -278,7 +275,11 @@ exports.joinChatRoom = async (socket, chatRoomId, userToken) => {
 				to: newUnreadMessagesSender
 			});
 
-			await ChatRoom.updateChatWithCondition({ _id: { $in: newUnreadMessages } }, { $set: { seen: true } });
+			await ChatRoom.updateChatWithCondition(
+				{ _id: new ObjectId(chatRoomId) },
+				{ $set: { 'chatHistory.$[el].seen': true } },
+				{ arrayFilters: [ { 'el._id': { $in: newUnreadMessages } } ] }
+			);
 		}
 
 		getIo().emit('chatRoomIsJoined', { chatRoom: newChatRoom, to: userId });
@@ -330,7 +331,11 @@ exports.messageSeen = async (socket, { messageId }) => {
 
 		getIo().in(clientChatRoom).emit('seen', messageId);
 
-		await ChatRoom.updateChatWithCondition({ _id: messageId }, { $set: { seen: true } });
+		await ChatRoom.updateChatWithCondition(
+			{ 'chatHistory._id': messageId },
+			{ $set: { 'chatHistory.$.seen': true } },
+			null
+		);
 	} catch (error) {
 		getIo().emit('seen', { error: error.message });
 	}
