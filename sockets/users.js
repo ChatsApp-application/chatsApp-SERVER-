@@ -272,7 +272,7 @@ exports.joinChatRoom = async (socket, chatRoomId, userToken) => {
 		}
 
 		if (newUnreadMessages.length > 0) {
-			getIo.emit('setUnseenMessagesToTrue', {
+			getIo().emit('setUnseenMessagesToTrue', {
 				messages: newUnreadMessages,
 				room: chatRoomId,
 				to: newUnreadMessagesSender
