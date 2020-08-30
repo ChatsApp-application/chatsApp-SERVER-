@@ -108,11 +108,12 @@ initDb((error, client) => {
 				// the frontend will emit this with data.typing = true if the message.length > 0
 				// if the user cleared the message(message.length === 0), he will send data.typing = false
 
-				const { userId, isTyping } = data;
+				const { userId, isTyping, roomId } = data;
 
-				const userChatRoom = Object.keys(socket.rooms)[1];
+				console.log(socket.rooms);
+				// const userChatRoom = Object.keys(socket.rooms)[1];
 
-				io.in(userChatRoom).emit('isTyping', { userId, isTyping });
+				io.in(roomId).emit('isTyping', { userId, isTyping });
 			});
 
 			socket.on('joinGroupRoom', data => {
