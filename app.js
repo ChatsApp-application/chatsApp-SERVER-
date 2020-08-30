@@ -74,10 +74,8 @@ initDb((error, client) => {
 		// listening to our only namespace => '/'
 		// 1- emit,   2- socket.on   3- io.in(room).emit(),
 		io.on('connection', socket => {
-			console.log(socket.id);
-			// userOfline
-			socket.on('userOfline', data => {
-				usersSockets.userOfline(data.userToken);
+			socket.on('changeActivityStatusFromClient', data => {
+				usersSockets.changeActivityStatus(data);
 			});
 
 			socket.on('leaveRoomOrGroup', data => {

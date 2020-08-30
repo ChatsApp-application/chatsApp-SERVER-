@@ -8,13 +8,18 @@ const socketIsAuth = require('../sockets/socketIsAuth');
 const socketHelpers = require('./socket-helpers');
 const Group = require('../models/group');
 const GroupMessage = require('../models/groupMesasage');
-exports.userOfline = async userToken => {
+
+exports.changeActivityStatus = async ({ userToken, online }) => {
 	try {
 		const userId = socketIsAuth(userToken);
-		getIo().emit('userIsOfline', { userId: userId, error: null });
-		await User.updateUserWithCondition({ _id: new ObjectId(userId) }, { $set: { online: false } });
+
+		const query = online === true ? { $set: { online: true } } : { $set: { online: false } };
+
+		getIo().emit('changeActivityStatus', { userId, online });
+
+		await User.updateUserWithCondition({ _id: new ObjectId(userId) }, query);
 	} catch (error) {
-		getIo().emit('userIsOfline', { userId: userId, error: error.message });
+		getIo().emit('changeActivityStatus', { error: error.message });
 	}
 };
 
@@ -315,9 +320,9 @@ exports.sendPrivateMessage = async (socket, messageData, userToken) => {
 		getIo().in(clientChatRoom).emit('privateMessageBack', quickMessageForOtherUser);
 
 		// send another event to handle the outside
-		getIo().emit('privateMessageBackFromOutside', to);
-
 		await newMessage.addMessage(clientChatRoom);
+
+		getIo().emit('privateMessageBackFromOutside', to);
 	} catch (error) {
 		getIo().emit('privateMessageBack', { error: error.message });
 	}

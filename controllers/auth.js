@@ -2,7 +2,6 @@ const sendError = require('../helpers/sendError');
 const jwt = require('jsonwebtoken');
 const bcyrpt = require('bcryptjs');
 const User = require('../models/user');
-const getIo = require('../helpers/socket').getIo;
 
 exports.postSignUp = async (req, res, next) => {
 	const { firstName, lastName, age, country, email, password, gender } = req.body;
@@ -55,16 +54,10 @@ exports.postSignin = async (req, res, next) => {
 			},
 			`${process.env.TOKEN_SECRET}`,
 			{
-				expiresIn: '30d'
+				expiresIn: '1d'
 			}
 		);
 
-		// set online to TRUE
-
-		await User.updateUserWithCondition({ email: email }, { $set: { online: true } });
-
-		// emit an event to inform all users that this user is online
-		getIo().emit('userOnline', { userId: foundUser._id });
 		res.status(200).json({
 			message: `${foundUser.firstName} ${foundUser.lastName} has logged in successfully`,
 			token: token,
